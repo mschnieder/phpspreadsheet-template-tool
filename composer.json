@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "keywords": ["PHPOffice", "phpspreadsheet"],
   "require": {
-    "php": ">=7.0.0",
+    "php": ">=7.0.0"
   },
   "license": "Apache-2.0",
   "authors": [
