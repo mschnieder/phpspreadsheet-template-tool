@@ -1,0 +1,23 @@
+{
+  "name": "mschnieder/phpspreadsheet-template-tool",
+  "description": "Fills Variables in a Excel File for PhpOffice-Spreadsheet.",
+  "type": "library",
+  "version": "1.0.0",
+  "keywords": ["PHPOffice", "phpspreadsheet"],
+  "require": {
+    "php": ">=7.0.0",
+  },
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Markus Schnieder",
+      "email": "markus@dermarkus.com",
+      "homepage": "https://github.com/mschnieder"
+    }
+  ],
+  "autoload": {
+    "psr-4" : {
+      "PhpOffice\\PhpSpreadsheet\\TemplateFiller\\": "src/PhpSpreadsheet/TemplateFiller"
+    }
+  }
+}
