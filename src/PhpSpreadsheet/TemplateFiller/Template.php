@@ -266,7 +266,7 @@ Class Template {
 		$var = ['variable' => $variable,
 				'h' => $h,
 				'v' => $verticals,
-				'tablesize' => table::countTableRows($this->worksheet, $variable, $h, $v)];
+				'tablesize' => Table::countTableRows($this->worksheet, $variable, $h, $v)];
 
 		$this->variablesTable[] = $var;
 	}
