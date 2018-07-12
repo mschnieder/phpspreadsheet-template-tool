@@ -39,11 +39,11 @@ Class Table {
 		$v = 0;
 
 		foreach($data as $key => $o) {
-			if(isset($o->$colname) == false && isset($o[$colname])) {
+			if(is_array($o)) {
 				$o = (object) $o;
 			}
 			if(gettype($o->$colname) == 'resource') {
-				$this->addImage($worksheet, $o->$colname, $celldata['h'], $celldata['v'][$v]);
+				self::addImage($worksheet, $o->$colname, $celldata['h'], $celldata['v'][$v]);
 			} else {
 				$selectedCell->setValue($o->$colname);
 			}
@@ -58,19 +58,22 @@ Class Table {
 	}
 
 
-	protected function addImage(&$worksheet, $img, $h, $v) {
+	public static function addImage(&$worksheet, $img, $h, $v, $width = 163, $offsetX= 200, $offsetY=0) {
 //  Add the In-Memory image to a worksheet
 		$drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing();
 		$drawing->setName('In-Memory image 1');
 		$drawing->setDescription('In-Memory image 1');
 		$drawing->setCoordinates($worksheet->getCellByColumnAndRow($h, $v)->getCoordinate());
+        $drawing->setOffsetX($offsetX);
+        $drawing->setOffsetY($offsetY);
 		$drawing->setImageResource($img);
 		$drawing->setRenderingFunction(
 			\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::RENDERING_PNG
 		);
 		$drawing->setMimeType(\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::MIMETYPE_DEFAULT);
-		$drawing->setWidth(163);
-		$drawing->setOffsetX(200);
+		$drawing->setWidth($width);
+
+
 		$drawing->setWorksheet($worksheet);
 		$worksheet->getCellByColumnAndRow($h, $v)->setValue('');
 	}
