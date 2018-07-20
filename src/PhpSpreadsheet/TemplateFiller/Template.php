@@ -3,7 +3,11 @@ namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 use PhpOffice\PhpSpreadsheet\Document\Security;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\File;
 use PhpOffice\PhpSpreadsheet\Style\Protection;
+use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
+use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing;
+use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf;
 
 Class Template {
     /** @var \PhpOffice\PhpSpreadsheet\Spreadsheet */
@@ -25,9 +29,11 @@ Class Template {
 		$this->variables = [];
 		$this->variablesTable = '';
 
-		$this->finalSpreadsheet =  new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-		$this->finalWorksheet = $this->finalSpreadsheet->getActiveSheet();
-		$this->finalRowPos = 1;
+		// Aktuell unnötig
+
+//		$this->finalSpreadsheet =  new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+//		$this->finalWorksheet = $this->finalSpreadsheet->getActiveSheet();
+//		$this->finalRowPos = 1;
 	}
 
 	/**
@@ -45,7 +51,7 @@ Class Template {
 	public function setData($d) {
 		$this->findVariables();
 
-		// if Tables existing
+//		 if Tables existing
 		if($this->variablesTable != '') {
 			$createtype = '';
 			foreach($this->variablesTable as $key => $val) {
@@ -66,6 +72,7 @@ Class Template {
 						$this->findVariables();
 						break;
 					case 'multipager':
+						throw new \Exception('Mulipager ist noch kaputt');
 						$this->worksheet = $this->spreadsheet->getSheet(2);
 						$this->variables = [];
 						$this->variablesTable = [];
@@ -83,14 +90,15 @@ Class Template {
 					case 'onepager':
 						$this->worksheet = $this->spreadsheet->getSheet(0);
 
-						table::fill($this->worksheet, $celldata, $d[$this->getVariableName($celldata['variable'])]);
+						Table::fill($this->worksheet, $celldata, $d[$this->getVariableName($celldata['variable'])]);
 						break;
 					case 'twopager':
 						$this->worksheet = $this->spreadsheet->getSheet(1);
 
-						table::fill($this->worksheet, $celldata, $d[$this->getVariableName($celldata['variable'])]);
+						Table::fill($this->worksheet, $celldata, $d[$this->getVariableName($celldata['variable'])]);
 						break;
 					case 'multipager':
+                        throw new \Exception('Mulipager ist noch kaputt');
 						$this->worksheet = $this->spreadsheet->getSheet(2);
 						if($first == true)
 							$this->copySheetAtLeast($this->spreadsheet->getSheet(3));
@@ -107,8 +115,8 @@ Class Template {
 			$this->findVariables();
 			$this->fillData($d);
 		}
-//		$this->writeVariables();
-	}
+		$this->writeVariables();
+    }
 
 	private function copySheetAtLeast($copysheet) {
 		$highestRow = $copysheet->getHighestRow();
@@ -150,14 +158,29 @@ Class Template {
 	private function fillData($d) {
 		foreach($this->variables as $key => $val) {
 			if(strpos($val['variable'], "[") === false && !is_array($val['v'])) {
+                $varname = $this->getVariableName($val['variable']);
+                if (!isset($d[$varname])) {
+                	continue;
+                }
                 if(gettype($d[$this->getVariableName($val['variable'])]) == 'resource') {
-                    Table::addImage($this->worksheet, $d[$this->getVariableName($val['variable'])], $val['h'], $val['v'], 163, 500, 30);
+                    Table::addImage($this->worksheet, $d[$varname], $val['h'], $val['v'], 163, 500, 30);
                 } else {
-                    $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$this->getVariableName($val['variable'])]);
+					$this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$varname]);
                 }
 			}
 		}
 	}
+
+	public function setLogo($path, $header, $position = HeaderFooter::IMAGE_HEADER_LEFT, $width = 90) {
+        $drawing = new HeaderFooterDrawing();
+        $drawing->setName('Logo');
+        $drawing->setPath($path);
+        $drawing->setWidth($width);
+        $this->worksheet->getHeaderFooter()->addImage($drawing, $position);
+        $this->worksheet->getHeaderFooter()->setFirstHeader($header);
+        $this->worksheet->getHeaderFooter()->setEvenHeader($header);
+        $this->worksheet->getHeaderFooter()->setOddHeader($header);
+    }
 
 	public function findVariables($variable = '', $worksheet = '', $vOffset = 1, $hOffset = 1) {
 		if($worksheet == '')
@@ -214,7 +237,6 @@ Class Template {
 		$this->pagetablesize['onepager'] = $this->getTableSize($variable, 0);
 		$this->pagetablesize['twopager'] = $this->getTableSize($variable, 1);
 		$this->pagetablesize['multipager'] = $this->getTableSize($variable, 3);
-
 
 		if($dataCount <= $this->pagetablesize['onepager']) {
 			return 'onepager';
@@ -300,58 +322,61 @@ Class Template {
     protected function writeVariables() {
 		foreach($this->variables as $key => $val) {
 			if(isset($val['value']))
-			$this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($val['value']);
+			    $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($val['value']);
 		}
 	}
 
 	private function _lastChanges() {
-        foreach($this->variables as $variable) {
-            $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v']);
-            if(strpos($cell->getValue(), '§§') === 0) {
-                $cell->setValue('');
+		if(is_array($this->variables) && count($this->variables) > 0) {
+            foreach($this->variables as $variable) {
+                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v']);
+                if(strpos($cell->getValue(), '§§') === 0) {
+                    $cell->setValue('');
+                }
             }
         }
 
-        foreach($this->variablesTable as $variable) {
-            $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][0]);
-            if(strpos($cell->getValue(), '§§') === 0) {
-                $cell->setValue('');
-            }
-            $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][sizeof($variable['v']) -1]);
-            if(strpos($cell->getValue(), '§§') === 0) {
-                $cell->setValue('');
+        if(is_array($this->variablesTable) && count($this->variablesTable) > 0) {
+            foreach($this->variablesTable as $variable) {
+                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][0]);
+                if(strpos($cell->getValue(), '§§') === 0) {
+                    $cell->setValue('');
+                }
+                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][sizeof($variable['v']) -1]);
+                if(strpos($cell->getValue(), '§§') === 0) {
+                    $cell->setValue('');
+                }
             }
         }
 
 
-//		$class = \PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf::class;
-//		\PhpOffice\PhpSpreadsheet\IOFactory::registerWriter('Pdf', $class);
-//		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($this->spreadsheet, 'Pdf');
-//		$writer->save($path.'test.pdf');
 //
-
-
+        $this->spreadsheet->getActiveSheet()->setTitle('Quittierungsbeleg');
+		$activeSheet = $this->spreadsheet->getActiveSheetIndex();
         $sheetCount = $this->spreadsheet->getSheetCount();
         for($i=$sheetCount-1;$i>=0;$i--) {
-            if($this->spreadsheet->getActiveSheetIndex() != $i) {
-                $this->spreadsheet->removeSheetByIndex($i);
-            } else {
-                $this->spreadsheet->getActiveSheet()->setTitle('Quittierungsbeleg');
+        	if($i != $activeSheet) {
+        	    $this->spreadsheet->removeSheetByIndex($i);
             }
         }
+        $this->spreadsheet->setActiveSheetIndex(0);
+
+        $randomPW = bin2hex(openssl_random_pseudo_bytes(64));
 
         $this->spreadsheet->getSecurity()->setLockRevision(true);
         $this->spreadsheet->getSecurity()->setLockStructure(true);
         $this->spreadsheet->getSecurity()->setLockWindows(true);
-        $this->spreadsheet->getSecurity()->setWorkbookPassword('MEMORIA_UNLOCK_PASSWORD');
-        $this->spreadsheet->getSecurity()->setRevisionsPassword('MEMORIA_UNLOCK_PASSWORD');
+        $this->spreadsheet->getSecurity()->setWorkbookPassword($randomPW);
+        $this->spreadsheet->getSecurity()->setRevisionsPassword($randomPW);
         $this->spreadsheet->getActiveSheet()->getProtection()->setSheet(true);
-        $this->spreadsheet->getActiveSheet()->getProtection()->setPassword('MEMORIA_UNLOCK_PASSWORD');
+        $this->spreadsheet->getActiveSheet()->getProtection()->setPassword($randomPW);
 	}
 
-	public function save($filename, $path = '', $filetype = 'Xls') {
+	public function save($filename, $path = '') {
 		$this->_lastChanges();
-		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($this->spreadsheet, 'Xls');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
+        $writer->setIncludeCharts(true);
 		$writer->save($path.$filename);
 	}
 
@@ -362,7 +387,8 @@ Class Template {
         header('Content-Disposition: attachment;filename="'.$filename.'"');
         header('Cache-Control: max-age=0');
 
-        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($this->spreadsheet, 'Xls');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
+        $writer->setIncludeCharts(true);
         $writer->save('php://output');
         exit();
 	}

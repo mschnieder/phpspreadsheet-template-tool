@@ -2,7 +2,7 @@
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 
-use \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet as wrks;
+use \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use \PhpOffice\PhpSpreadsheet\Style as style;
 
 Class Utils
@@ -14,7 +14,7 @@ Class Utils
 
 	}
 
-	public static function copyRows(wrks $srcSheet, $srcFrom, $srcTo, wrks $dstSheet, $dstFrom, $dstTo) {
+	public static function copyRows(Worksheet $srcSheet, string $srcFrom, string $srcTo, Worksheet $dstSheet, string $dstFrom, string $dstTo) {
 		$dstFromRow = $dstSheet->getHighestRow();
 		$dstFromCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($dstSheet->getHighestColumn());
 
@@ -33,7 +33,7 @@ Class Utils
 		self::copyContent($srcSheet, $srcFrom, $srcTo, $dstSheet, $dstFrom);
 	}
 
-	public static function copyStyle(wrks $srcSheet, wrks $dstSheet, $dstFromPos, $srcFromPos, $srcToPos) {
+	public static function copyStyle(Worksheet $srcSheet, Worksheet $dstSheet, $dstFromPos, $srcFromPos, $srcToPos) {
 
 		for($col = $srcFromPos['col']; $col <= $srcToPos['col']; $col++) {
 			$colindex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
@@ -50,17 +50,16 @@ Class Utils
 	}
 
 
-	public static function copyContent($srcSheet, $srcFrom, $srcTo, $dstSheet, $dstFrom) {
+	public static function copyContent(Worksheet $srcSheet, $srcFrom, $srcTo, Worksheet $dstSheet, $dstFrom) {
 		$cellValues = $srcSheet->rangeToArray($srcFrom.':'.$srcTo);
 		$dstSheet->fromArray($cellValues, NULL, $dstFrom);
 	}
 
 	public static function copyAlignment($srcstyle) { // }, $srcFrom, $srcTo, $dstSheet, $dstFrom) {
-
 		print_r($srcstyle);
 	}
 
-	public static function mergeCells($srcSheet, $dstFromPos, $dstSheet) {
+	public static function mergeCells(Worksheet $srcSheet, $dstFromPos, Worksheet $dstSheet) {
 		$arr = $srcSheet->getMergeCells();
 		$a = [];
 		foreach($arr as $key => $val) {
@@ -72,7 +71,6 @@ Class Utils
 			preg_match_all('!\d+!', $keya, $newcoler);
 			$newcoler = $newcoler[0][0];
 			$col = str_replace($newcoler, '', $keya);
-
 
 			$newcol = $newcoler + $dstFromPos['row'];
 			$newcola = $col.$newcol;
