@@ -4,6 +4,8 @@ namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
+use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Psr\SimpleCache\CacheInterface;
 
@@ -350,12 +352,39 @@ class TemplateParser {
         $this->findVariables('', $this->worksheet);
     }
 
-    public function createNewTemplate($tableSize) {
+    public function createNewTemplate($tableSize, $worksheetName = null) {
         $createtype = $this->getTemplateMode($tableSize);
 
         if($createtype === self::MULTIPAGER) {
             $this->appendNeededSheets($tableSize);
         }
+
+        $curIndex = 0;
+        while($this->spreadsheet->getSheetCount() > 1) {
+            if($curIndex === $this->spreadsheet->getIndex($this->worksheet))
+                $curIndex++;
+
+            $sheet = $this->spreadsheet->getSheet($curIndex);
+            $title = $sheet->getTitle();
+            unset($this->variablesTable[$title]);
+            unset($this->variables[$title]);
+            $this->spreadsheet->removeSheetByIndex($curIndex);
+        }
+
+        $this->spreadsheet->setActiveSheetIndex(0);
+        $this->worksheet = $this->spreadsheet->getActiveSheet();
+
+        if($worksheetName) {
+            $title = $this->worksheet->getTitle();
+            $this->variables[$worksheetName] = $this->variables[$title];
+            $this->variablesTable[$worksheetName] = $this->variablesTable[$title];
+            unset($this->variablesTable[$title]);
+            unset($this->variables[$title]);
+            $this->worksheet->setTitle($worksheetName);
+        }
+
+        $this->spreadsheet->garbageCollect();
+        $this->worksheet->garbageCollect();
     }
 
     public function getPreparedWorksheet()
@@ -387,5 +416,17 @@ class TemplateParser {
         $breakPoints = reset($breakPoints);
 
         return $breakPoints[self::TWOPAGER] + ($breakPoints[self::MULTIPAGER] * $this->additionalPages);
+    }
+
+    public function setLogo($path, $header, $position = HeaderFooter::IMAGE_HEADER_LEFT, $width = 90)
+    {
+        $drawing = new HeaderFooterDrawing();
+        $drawing->setName('Logo');
+        $drawing->setPath($path);
+        $drawing->setWidth($width);
+        $this->worksheet->getHeaderFooter()->addImage($drawing, $position);
+        $this->worksheet->getHeaderFooter()->setFirstHeader($header);
+        $this->worksheet->getHeaderFooter()->setEvenHeader($header);
+        $this->worksheet->getHeaderFooter()->setOddHeader($header);
     }
 }

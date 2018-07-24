@@ -50,6 +50,12 @@ Class Template {
     /** @var TemplateCache */
     protected $templateCache;
 
+    /** @var string */
+    protected $worksheetName;
+
+    /** @var array */
+    protected $logo;
+
     public function __construct() {
 		$this->path = '';
 		$this->variables = [];
@@ -67,6 +73,10 @@ Class Template {
         $this->path = $path."/".$filename;
         $this->templateCache = new TemplateCache();
 	}
+
+	public function setWorksheetName($name) {
+	    $this->worksheetName = $name;
+    }
 
 	public function setData($d){
 	    $this->data = $d;
@@ -90,11 +100,16 @@ Class Template {
             } else {
 	            $this->templateParser = new TemplateParser($this->path);
 	            $this->templateParser->parseTemplate();
-	            $this->templateParser->createNewTemplate($maxRows);
+	            $this->templateParser->createNewTemplate($maxRows, $this->worksheetName);
+
+	            if($this->logo) {
+	                call_user_func_array([$this->templateParser, 'setLogo'], $this->logo);
+                }
+
 	            $this->templateCache->store($this->templateParser);
             }
 
-            $createtype = $this->templateParser->getSelectedMode();
+            $createtype = self::ONEPAGER;
 
             $this->variables = $this->templateParser->getVariablesByType($createtype);
             $this->variablesTable = $this->templateParser->getVariablesTableByType($createtype);
@@ -139,14 +154,7 @@ Class Template {
 	}
 
 	public function setLogo($path, $header, $position = HeaderFooter::IMAGE_HEADER_LEFT, $width = 90) {
-        $drawing = new HeaderFooterDrawing();
-        $drawing->setName('Logo');
-        $drawing->setPath($path);
-        $drawing->setWidth($width);
-        $this->worksheet->getHeaderFooter()->addImage($drawing, $position);
-        $this->worksheet->getHeaderFooter()->setFirstHeader($header);
-        $this->worksheet->getHeaderFooter()->setEvenHeader($header);
-        $this->worksheet->getHeaderFooter()->setOddHeader($header);
+	    $this->logo = func_get_args();
     }
 
     public function setProbeausdruck()
@@ -185,16 +193,6 @@ Class Template {
                 }
             }
         }
-
-        $curIndex = 0;
-        while($this->spreadsheet->getSheetCount() > 1) {
-        	if($curIndex === $this->spreadsheet->getIndex($this->worksheet))
-        		$curIndex++;
-            $this->spreadsheet->removeSheetByIndex($curIndex);
-        }
-
-        $this->spreadsheet->setActiveSheetIndex(0);
-        $this->spreadsheet->getActiveSheet()->setTitle('Quittierungsbeleg');
 	}
 
 	private function lock() {
