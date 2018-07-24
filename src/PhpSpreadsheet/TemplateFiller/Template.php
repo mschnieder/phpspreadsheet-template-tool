@@ -1,39 +1,59 @@
 <?php
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Document\Security;
+use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\File;
 use PhpOffice\PhpSpreadsheet\Style\Protection;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf;
+use Psr\SimpleCache\CacheInterface;
 
 Class Template {
+    const INDEX_ONEPAGER = 0;
+    const INDEX_TWOPAGER = 1;
+    const INDEX_MULTIPAGER = 3;
+
+    const ONEPAGER = 'onepager';
+    const TWOPAGER = 'twopager';
+    const MULTIPAGER = 'multipager';
+
+
     /** @var \PhpOffice\PhpSpreadsheet\Spreadsheet */
 	protected $spreadsheet;
 
     /** @var \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet */
 	protected $worksheet;
+
+	/** @var string */
 	protected $path;
-	
-	protected $finalSpreadsheet;
-	protected $finalWorksheet;
-	protected $finalRowPos;
 
-	protected $variables;
-	protected $variablesTable;
+	/** @var array */
+    protected $variablesTable;
 
-	public function __construct() {
-		$this->pfad = '';
+    /** @var array */
+    protected $pagetablesize;
+
+    /** @var array */
+    protected $variables;
+
+    /** @var array */
+    protected $data;
+
+    /** @var TemplateParser */
+    protected $templateParser;
+
+    /** @var TemplateCache */
+    protected $templateCache;
+
+    public function __construct() {
+		$this->path = '';
 		$this->variables = [];
-		$this->variablesTable = '';
-
-		// Aktuell unnötig
-
-//		$this->finalSpreadsheet =  new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-//		$this->finalWorksheet = $this->finalSpreadsheet->getActiveSheet();
-//		$this->finalRowPos = 1;
+		$this->variablesTable = [];
 	}
 
 	/**
@@ -44,125 +64,72 @@ Class Template {
 	 * Set the Filename for the Template
 	 */
 	public function setTemplate($filename, $path) {
-		$this->spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path."/".$filename);
-		$this->worksheet = $this->spreadsheet->getSheet(0);
+        $this->path = $path."/".$filename;
+        $this->templateCache = new TemplateCache();
 	}
 
-	public function setData($d) {
-		$this->findVariables();
+	public function setData($d){
+	    $this->data = $d;
 
-//		 if Tables existing
-		if($this->variablesTable != '') {
-			$createtype = '';
-			foreach($this->variablesTable as $key => $val) {
-				$createtype = $this->checkType(count($d[$this->getVariableName($val['variable'])]), $val['variable']);
+	    if ($this->hasTable($d)) {
+	        list($maxRows, $maxRowsVar) = $this->getMaxTableEntries($d);
 
-				// Take the Template by Data size
-				switch($createtype) {
-					case 'onepager':
-						$this->worksheet = $this->spreadsheet->getSheet(0);
-						$this->variables = [];
-						$this->variablesTable = [];
-						$this->findVariables();
-						break;
-					case 'twopager':
-						$this->worksheet = $this->spreadsheet->getSheet(1);
-						$this->variables = [];
-						$this->variablesTable = [];
-						$this->findVariables();
-						break;
-					case 'multipager':
-						throw new \Exception('Mulipager ist noch kaputt');
-						$this->worksheet = $this->spreadsheet->getSheet(2);
-						$this->variables = [];
-						$this->variablesTable = [];
-						$this->findVariables();
-						break;
-				}
-				break;
-			}
+	        $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
 
-			// Fill Table in a worksheet by createtype
-			$first = true;
+	        if($cachedTemplateKey) {
+                echo 'I need ' . $cachedTemplateKey . PHP_EOL;
+            } else {
+	            echo 'I will create from scratch'.PHP_EOL;
+            }
+
+	        if($cachedTemplateKey && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
+	            $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);
+	            if (!$this->templateParser) {
+	                throw new Exception('Fehler beim lesen der Cache-Datei');
+                }
+            } else {
+	            $this->templateParser = new TemplateParser($this->path);
+	            $this->templateParser->parseTemplate();
+	            $this->templateParser->createNewTemplate($maxRows);
+	            $this->templateCache->store($this->templateParser);
+            }
+
+            $createtype = $this->templateParser->getSelectedMode();
+
+            $this->variables = $this->templateParser->getVariablesByType($createtype);
+            $this->variablesTable = $this->templateParser->getVariablesTableByType($createtype);
+            $breakPoints = $this->templateParser->getBreakPoints();
+            $this->pagetablesize = $breakPoints[$maxRowsVar];
+
+            $this->worksheet = $this->templateParser->getPreparedWorksheet();
+            $this->spreadsheet = $this->templateParser->getPreparedSpreadsheet();
+        }
+	    $this->_setData($d);
+    }
+
+	public function _setData($d) {
+		if($this->templateParser->hasTable()) {
 			foreach($this->variablesTable as $key => $celldata) {
-				$celldata['variable_blank'] = $this->getColName($celldata['variable']);
-				switch($createtype) {
-					case 'onepager':
-						$this->worksheet = $this->spreadsheet->getSheet(0);
-
-						Table::fill($this->worksheet, $celldata, $d[$this->getVariableName($celldata['variable'])]);
-						break;
-					case 'twopager':
-						$this->worksheet = $this->spreadsheet->getSheet(1);
-
-						Table::fill($this->worksheet, $celldata, $d[$this->getVariableName($celldata['variable'])]);
-						break;
-					case 'multipager':
-                        throw new \Exception('Mulipager ist noch kaputt');
-						$this->worksheet = $this->spreadsheet->getSheet(2);
-						if($first == true)
-							$this->copySheetAtLeast($this->spreadsheet->getSheet(3));
-
-						$first = false;
-//						$this->findVariables();
-
-//						die("MULTIPAGER");
-						break;
-				}
+				$celldata['variable_blank'] = TemplateParser::getColName($celldata['variable']);
+                Table::fill($this->worksheet, $celldata, $d[TemplateParser::getVariableName($celldata['variable'])]);
 			}
             $this->fillData($d);
 		} else {
-			$this->findVariables();
-			$this->fillData($d);
+		    throw new Exception('noch nicht fertig');
+//			$this->findVariables();
+//			$this->fillData($d);
 		}
 		$this->writeVariables();
     }
 
-	private function copySheetAtLeast($copysheet) {
-		$highestRow = $copysheet->getHighestRow();
-		$highestColumn = $copysheet->getHighestColumn();
-
-		Utils::copyRows($copysheet, 'A1', 'AU37', $this->worksheet, 'A39', 'AU76');
-	}
-
-	public function copyRows($sheet,$srcRow,$dstRow,$height,$width) {
-
-		for ($row = 0; $row < $height; $row++) {
-			for ($col = 0; $col < $width; $col++) {
-				$cell = $sheet->getCellByColumnAndRow($col, $srcRow + $row);
-				$style = $sheet->getStyleByColumnAndRow($col, $srcRow + $row);
-				$dstCell = $sheet->getCellByColumnAndRow($col, ($dstRow + $row))->getValue();
-				$sheet->setCellValue($dstCell, $cell->getValue());
-				$sheet->duplicateStyle($style, $dstCell);
-			}
-
-			$h = $sheet->getRowDimension($srcRow + $row)->getRowHeight();
-			$sheet->getRowDimension($dstRow + $row)->setRowHeight($h);
-		}
-
-		foreach ($sheet->getMergeCells() as $mergeCell) {
-			$mc = explode(":", $mergeCell);
-			$col_s = preg_replace("/[0-9]*/", "", $mc[0]);
-			$col_e = preg_replace("/[0-9]*/", "", $mc[1]);
-			$row_s = ((int)preg_replace("/[A-Z]*/", "", $mc[0])) - $srcRow;
-			$row_e = ((int)preg_replace("/[A-Z]*/", "", $mc[1])) - $srcRow;
-
-			if (0 <= $row_s && $row_s < $height) {
-				$merge = $col_s . (string)($dstRow + $row_s) . ":" . $col_e . (string)($dstRow + $row_e);
-				$sheet->mergeCells($merge);
-			}
-		}
-	}
-
-
 	private function fillData($d) {
 		foreach($this->variables as $key => $val) {
 			if(strpos($val['variable'], "[") === false && !is_array($val['v'])) {
-                $varname = $this->getVariableName($val['variable']);
+                $varname = TemplateParser::getVariableName($val['variable']);
                 if (!isset($d[$varname])) {
                 	continue;
                 }
-                if(gettype($d[$this->getVariableName($val['variable'])]) == 'resource') {
+                if(gettype($d[$varname]) == 'resource') {
                     Table::addImage($this->worksheet, $d[$varname], $val['h'], $val['v'], 163, 500, 30);
                 } else {
 					$this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$varname]);
@@ -182,151 +149,21 @@ Class Template {
         $this->worksheet->getHeaderFooter()->setOddHeader($header);
     }
 
-	public function findVariables($variable = '', $worksheet = '', $vOffset = 1, $hOffset = 1) {
-		if($worksheet == '')
-			$worksheet = $this->worksheet;
-
-		$highestRow = $worksheet->getHighestRow();
-		$highestColumn = $worksheet->getHighestColumn();
-		$highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
-
-		for($v = $vOffset; $v <= $highestRow; $v++) {
-			for($h = $hOffset; $h <= $highestColumnIndex; $h++) {
-				if($variable != '') {
-					$inhalt = $worksheet->getCellByColumnAndRow($h, $v)->getValue();
-					if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
-						if(strpos($inhalt, $variable) !== false) {
-							$erg = '';
-
-							$ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
-							if ($ext != false) {
-								$erg[] = $ext;
-								$erg[] = ['h' => $h, 'v' => $v];
-							} else {
-								$erg = ['h' => $h, 'v' => $v];
-							}
-							return $erg;
-						}
-					} else if (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
-						if(strpos($inhalt, $variable) !== false) {
-							$erg = '';
-							$ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
-							if ($ext != false) {
-								$erg[] = $ext;
-								$erg[] = ['h' => $h, 'v' => $v];
-							} else {
-								$erg = ['h' => $h, 'v' => $v];
-							}
-							return $erg;
-						}
-					}
-				} else {
-					$inhalt = $worksheet->getCellByColumnAndRow($h, $v)->getValue();
-					if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
-						$this->addVariable($inhalt, $h, $v);
-					} else if (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
-						$this->addVariableTable($inhalt, $h, $v);
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	protected function checkType($dataCount, $variable) {
-		$this->pagetablesize['onepager'] = $this->getTableSize($variable, 0);
-		$this->pagetablesize['twopager'] = $this->getTableSize($variable, 1);
-		$this->pagetablesize['multipager'] = $this->getTableSize($variable, 3);
-
-		if($dataCount <= $this->pagetablesize['onepager']) {
-			return 'onepager';
-		} else if($dataCount <= $this->pagetablesize['twopager']) {
-			return 'twopager';
-		} else {
-			return 'multipager';
-		}
-	}
-	
-	protected function getTableSize($variable, $worksheet) {
-		$pos = $this->findVariables($variable, $this->spreadsheet->getSheet($worksheet));
-		$size = 0;
-
-		if(isset($pos['h'])) {
-			$size = table::countTableRows($this->spreadsheet->getSheet($worksheet), $variable, $pos['h'], $pos['v']);
-		} else {
-			foreach($pos as $p) {
-				$size += table::countTableRows($this->spreadsheet->getSheet($worksheet), $variable, $p['h'], $p['v']);
-			}
-		}
-		return $size;
-	}
-
-	protected function addVariableTable($variable, $h, $v) {
-		$countV = $v + 1;
-		$verticals = [];
-		$verticals[] = $v;
-		while($countV < 1000) {
-			if($this->worksheet->getCellByColumnAndRow($h, $countV)->getValue() == '') {
-				$verticals[] = $countV;
-			} else {
-				break 1;
-			}
-			$countV++;
-		}
-		$verticals[] = $countV;
-
-		if(is_array($this->variablesTable))
-		foreach($this->variablesTable as $key => $arr) {
-			if($variable == $arr['variable']) {
-				foreach($verticals as $k => $v)
-					$this->variablesTable[$key]['v'][] = $v;
-				
-				return;
-			}
-		}
-
-		$var = ['variable' => $variable,
-				'h' => $h,
-				'v' => $verticals,
-				'tablesize' => Table::countTableRows($this->worksheet, $variable, $h, $v)];
-
-		$this->variablesTable[] = $var;
-	}
-
-	protected function addVariable($variable, $h, $v) {
-		$var = ['variable' => $variable,
-				'h' => $h,
-				'v' => $v];
-
-		$this->variables[] = $var;
-	}
-
-	protected function getVariableName($uncleanvariable) {
-		$colname = explode('[', str_replace('§§', '', $uncleanvariable));
-		$vname = $colname[0];
-		return $vname;
-	}
-
-	protected function getColName($uncleanvariable) {
-		$colname = explode('[', str_replace('§§', '', $uncleanvariable));
-		$colname = str_replace(']END', '', $colname[1]);
-		$colname = str_replace("]", "", $colname);
-		return $colname;
-	}
-
     public function setProbeausdruck()
     {
     	//TODO mit spreadsheet noch herausfinden
     }
 
-    protected function writeVariables() {
-		foreach($this->variables as $key => $val) {
-			if(isset($val['value']))
-			    $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($val['value']);
+    protected function writeVariables()
+    {
+		foreach ($this->variables as $key => $val) {
+			if (isset($val['value']))  {
+                $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($val['value']);
+            }
 		}
 	}
 
-	private function _lastChanges() {
+	private function cleanup() {
 		if(is_array($this->variables) && count($this->variables) > 0) {
             foreach($this->variables as $variable) {
                 $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v']);
@@ -349,18 +186,18 @@ Class Template {
             }
         }
 
-
-//
-        $this->spreadsheet->getActiveSheet()->setTitle('Quittierungsbeleg');
-		$activeSheet = $this->spreadsheet->getActiveSheetIndex();
-        $sheetCount = $this->spreadsheet->getSheetCount();
-        for($i=$sheetCount-1;$i>=0;$i--) {
-        	if($i != $activeSheet) {
-        	    $this->spreadsheet->removeSheetByIndex($i);
-            }
+        $curIndex = 0;
+        while($this->spreadsheet->getSheetCount() > 1) {
+        	if($curIndex === $this->spreadsheet->getIndex($this->worksheet))
+        		$curIndex++;
+            $this->spreadsheet->removeSheetByIndex($curIndex);
         }
-        $this->spreadsheet->setActiveSheetIndex(0);
 
+        $this->spreadsheet->setActiveSheetIndex(0);
+        $this->spreadsheet->getActiveSheet()->setTitle('Quittierungsbeleg');
+	}
+
+	private function lock() {
         $randomPW = bin2hex(openssl_random_pseudo_bytes(64));
 
         $this->spreadsheet->getSecurity()->setLockRevision(true);
@@ -370,10 +207,11 @@ Class Template {
         $this->spreadsheet->getSecurity()->setRevisionsPassword($randomPW);
         $this->spreadsheet->getActiveSheet()->getProtection()->setSheet(true);
         $this->spreadsheet->getActiveSheet()->getProtection()->setPassword($randomPW);
-	}
+    }
 
 	public function save($filename, $path = '') {
-		$this->_lastChanges();
+		$this->cleanup();
+		$this->lock();
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
         $writer->setIncludeCharts(true);
@@ -381,7 +219,8 @@ Class Template {
 	}
 
 	public function sendToBrowser($filename) {
-        $this->_lastChanges();
+        $this->cleanup();
+        $this->lock();
 
         header('Content-Type: application/vnd.ms-excel');
         header('Content-Disposition: attachment;filename="'.$filename.'"');
@@ -392,5 +231,28 @@ Class Template {
         $writer->save('php://output');
         exit();
 	}
+
+    private function hasTable($data)
+    {
+        foreach($data as $varname => $cellData) {
+            if(count($cellData) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function getMaxTableEntries($d)
+    {
+        $maxRowsName = '';
+        $maxRows = 0;
+        foreach($d as $varName => $value) {
+            $rows = count($value);
+            if($maxRows < $rows) {
+                $maxRows = $rows;
+                $maxRowsName = $varName;
+            }
+        }
+        return [$maxRows, $maxRowsName];
+    }
 }
-?>

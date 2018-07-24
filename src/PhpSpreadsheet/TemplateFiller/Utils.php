@@ -2,6 +2,7 @@
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use \PhpOffice\PhpSpreadsheet\Style as style;
 
@@ -10,9 +11,59 @@ Class Utils
 	protected $cols;
 	protected $rows;
 
-	public function __construct() {
+	public static function appendSheet(Worksheet &$src, Worksheet $dst) {
+	    $srcColMax = $src->getHighestColumn();
+	    $srcRowMax = $src->getHighestRow();
 
-	}
+	    $dstRow = $dst->getHighestRow() + 1;
+	    $dstCol = 'A';
+
+        foreach ($src->getMergeCells() as $mergeCell) {
+            $mc = explode(':', $mergeCell);
+            $col_s = preg_replace("/[0-9]*/", "", $mc[0]);
+            $col_e = preg_replace("/[0-9]*/", "", $mc[1]);
+            $row_s = ((int)preg_replace("/[A-Z]*/", "", $mc[0])) - 1;
+            $row_e = ((int)preg_replace("/[A-Z]*/", "", $mc[1])) - 1;
+
+            if(0 <= $row_s && $row_s < $srcRowMax) {
+                $merge = $col_s. (string)($dstRow + $row_s) . ':'. $col_e . (string)($dstRow + $row_e);
+                $dst->mergeCells($merge);
+            }
+        }
+
+        $data = $src->rangeToArray('A1:'.$srcColMax.$srcRowMax);
+	    $dst->fromArray($data, null, $dstCol.$dstRow);
+
+	    $colMax = Coordinate::columnIndexFromString($srcColMax);
+	    $rowMax = $srcRowMax;
+
+        for ($col = 1; $col <= $colMax; ++$col) {
+            $colLetter = Coordinate::stringFromColumnIndex($col);
+            for ($row = 1; $row <= $rowMax; ++$row) {
+                $cellCordStart = $colLetter. $row;
+                $cellCordEnd = $colLetter.($row + $dstRow - 1);
+//                echo 'Copy Style from '.$cellCordStart. ' -> '.$cellCordEnd.PHP_EOL;
+                $style = $src->getStyle($cellCordStart);
+                $dst->duplicateStyle($style, $cellCordEnd);
+            }
+        }
+
+        // Copy row height
+        // Cols sollte identisch wie erste seite sein
+
+        for ($row = 1; $row <= $rowMax; ++$row) {
+            $dim = $src->getRowDimension($row, true);
+            $dstDim = $dst->getRowDimension($row + $dstRow -1, true);
+
+            $dstDim->setCollapsed($dim->getCollapsed());
+            $dstDim->setOutlineLevel($dim->getOutlineLevel());
+            $dstDim->setRowHeight($dim->getRowHeight());
+            $dstDim->setRowIndex($dim->getRowIndex());
+            $dstDim->setVisible($dim->getVisible());
+            $dstDim->setZeroHeight($dim->getZeroHeight());
+        }
+
+    }
 
 	public static function copyRows(Worksheet $srcSheet, string $srcFrom, string $srcTo, Worksheet $dstSheet, string $dstFrom, string $dstTo) {
 		$dstFromRow = $dstSheet->getHighestRow();
