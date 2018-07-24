@@ -86,13 +86,7 @@ Class Template {
 
 	        $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
 
-	        if($cachedTemplateKey) {
-                echo 'I need ' . $cachedTemplateKey . PHP_EOL;
-            } else {
-	            echo 'I will create from scratch'.PHP_EOL;
-            }
-
-	        if($cachedTemplateKey && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
+	        if($cachedTemplateKey && $this->templateCache->exists($cachedTemplateKey) && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
 	            $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);
 	            if (!$this->templateParser) {
 	                throw new Exception('Fehler beim lesen der Cache-Datei');
@@ -118,6 +112,8 @@ Class Template {
 
             $this->worksheet = $this->templateParser->getPreparedWorksheet();
             $this->spreadsheet = $this->templateParser->getPreparedSpreadsheet();
+        } else {
+	        throw new Exception('not working now');
         }
 	    $this->_setData($d);
     }
@@ -233,7 +229,7 @@ Class Template {
     private function hasTable($data)
     {
         foreach($data as $varname => $cellData) {
-            if(count($cellData) > 0) {
+            if(is_array($cellData) && count($cellData) > 0) {
                 return true;
             }
         }
@@ -245,10 +241,12 @@ Class Template {
         $maxRowsName = '';
         $maxRows = 0;
         foreach($d as $varName => $value) {
-            $rows = count($value);
-            if($maxRows < $rows) {
-                $maxRows = $rows;
-                $maxRowsName = $varName;
+            if(is_array($value)) {
+                $rows = count($value);
+                if($maxRows < $rows) {
+                    $maxRows = $rows;
+                    $maxRowsName = $varName;
+                }
             }
         }
         return [$maxRows, $maxRowsName];

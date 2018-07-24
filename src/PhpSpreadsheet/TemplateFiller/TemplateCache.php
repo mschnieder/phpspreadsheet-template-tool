@@ -27,9 +27,9 @@ class TemplateCache {
             $breakPoints = $fileCache['breakpoints'];
 
             $additionalPages = 0;
-            if($breakPoints[TemplateParser::ONEPAGER] > $maxRows) {
+            if($breakPoints[TemplateParser::ONEPAGER] >= $maxRows) {
                 $selectedType = TemplateParser::ONEPAGER;
-            } elseif ($breakPoints[TemplateParser::TWOPAGER] > $maxRows) {
+            } elseif ($breakPoints[TemplateParser::TWOPAGER] >= $maxRows) {
                 $selectedType = TemplateParser::TWOPAGER;
             } else {
                 $selectedType = TemplateParser::MULTIPAGER;
@@ -61,12 +61,13 @@ class TemplateCache {
     private function getTemplateMeta()
     {
         if (self::$cacheClass) {
-            if($this->meta) {
+            if ($this->meta) {
                 return $this->meta;
             }
 
             if (self::$cacheClass->has(self::CACHE_METADATA)) {
-                return self::$cacheClass->get(self::CACHE_METADATA);
+                $this->meta = self::$cacheClass->get(self::CACHE_METADATA);
+                return $this->meta;
             }
         }
         return null;
@@ -100,6 +101,9 @@ class TemplateCache {
             self::$cacheClass->set($cacheKey, $templateParser);
 
             $meta = $this->getTemplateMeta();
+            if(!$meta) {
+                $meta = [];
+            }
 
             if(!isset($meta[$filename])) {
                 $breakpoints = $templateParser->getBreakPoints();
@@ -137,5 +141,43 @@ class TemplateCache {
             ]
         ];
 */
+    }
+
+    public function exists($cachedTemplateKey)
+    {
+        if(self::$cacheClass) {
+            if(self::$cacheClass->has($cachedTemplateKey)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static function warmup($template, $header, $logo, $testentry, $data, $tablekey, $from = 1, $to = 20) {
+        ini_set('memory_limit', -1);
+        $dir = dirname($template);
+        $file = basename($template);
+
+        $data[$tablekey] = [];
+        echo 'Generating template '.$from.' to '.$to.PHP_EOL;
+        for($rows = 0; $rows <= $to; $rows++) {
+            $data[$tablekey][] = $testentry;
+
+            $cache = new self();
+            $cachedTemplateKey = $cache->getCacheTemplateKey($file, $rows);
+            if($cachedTemplateKey && $cache->exists($cachedTemplateKey)) {
+                continue;
+            }
+            echo 'Generating '.$cachedTemplateKey.PHP_EOL;
+
+            // Trigger generator
+            $doc = new Template();
+            $doc->setTemplate($file, $dir);
+            $doc->setLogo($logo, $header);
+            $doc->setWorksheetName('Quittierungsbeleg');
+
+            $doc->setData($data);
+            unset($doc);
+        }
     }
 }

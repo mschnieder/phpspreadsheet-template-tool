@@ -322,27 +322,15 @@ class TemplateParser {
 
         $neededSheets = ceil($neededSize / $middleSize);
 
-        echo 'Rows  ' . $tableSize.PHP_EOL;
-
-        echo 'S-E   ' . $breakPoints[self::TWOPAGER].PHP_EOL;
-        echo 'M     ' . $breakPoints[self::MULTIPAGER].PHP_EOL;
-
-        echo 'need  ' . $neededSize.PHP_EOL;
-        echo 'pages ' . $neededSheets.PHP_EOL;
-
-
         $this->additionalPages = $neededSheets;
 
         $middleSheet = $this->spreadsheet->getSheet(self::INDEX_MULTIPAGER);
         $endSheet = $this->spreadsheet->getSheet(self::INDEX_ENDPAGE);
         for ($i = 0; $i < $neededSheets; ++$i) {
-            echo 'Append page'.PHP_EOL;
             Utils::appendSheet($middleSheet, $this->worksheet);
         }
         // Append last page
         Utils::appendSheet($endSheet, $this->worksheet);
-        echo 'Finish appending pages'.PHP_EOL;
-        echo 'Read new table data'.PHP_EOL;
 
         $title = $this->worksheet->getTitle();
 
