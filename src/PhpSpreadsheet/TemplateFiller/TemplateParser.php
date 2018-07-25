@@ -177,6 +177,11 @@ class TemplateParser {
         $worksheet = $this->spreadsheet->getSheet($worksheetIndex);
 
         $pos = $this->findVariables($variable, $worksheet);
+
+        if(!is_array($pos) || count($pos) == 0) {
+            return 0;
+        }
+
         $size = 0;
 
         if(isset($pos['h'])) {

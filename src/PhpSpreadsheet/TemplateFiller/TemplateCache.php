@@ -158,17 +158,36 @@ class TemplateCache {
         $dir = dirname($template);
         $file = basename($template);
 
-        $data[$tablekey] = [];
-        echo 'Generating template '.$from.' to '.$to.PHP_EOL;
+
+        if(!is_array($tablekey)) {
+            $tablekey = [$tablekey];
+        }
+
+        foreach($tablekey as $key) {
+            $data[$key] = [];
+        }
+        echo 'Generating template for rows from '.$from.' to '.$to.PHP_EOL.PHP_EOL;
+        $lastFile = '';
         for($rows = 0; $rows <= $to; $rows++) {
-            $data[$tablekey][] = $testentry;
+            foreach($tablekey as $key) {
+                $data[$key][] = $testentry;
+            }
 
             $cache = new self();
             $cachedTemplateKey = $cache->getCacheTemplateKey($file, $rows);
-            if($cachedTemplateKey && $cache->exists($cachedTemplateKey)) {
-                continue;
+            if($cachedTemplateKey) {
+                if($lastFile != $cachedTemplateKey)
+                    echo 'Checking '.$cachedTemplateKey.PHP_EOL;
+                $lastFile = $cachedTemplateKey;
+                if($cache->exists($cachedTemplateKey)) {
+                    if(!$cache->isInvalid($cachedTemplateKey, $template)) {
+                        continue;
+                    }
+                    echo 'Invalid, Regenerating '.$cachedTemplateKey.PHP_EOL.PHP_EOL;
+                } else {
+                    echo 'Generating '.$cachedTemplateKey.PHP_EOL.PHP_EOL;
+                }
             }
-            echo 'Generating '.$cachedTemplateKey.PHP_EOL;
 
             // Trigger generator
             $doc = new Template();
