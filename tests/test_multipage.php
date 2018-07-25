@@ -44,6 +44,9 @@ $data = [
     'gesamtstunden' => 100,
 ];
 
+for($i=0;$i<200;$i++)
+    $data['azua'][] = $entry;
+
 
 $cache = new SimpleCache();
 $cache->setCacheDir(__DIR__.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR);
@@ -52,17 +55,12 @@ $cache->setCacheDir(__DIR__.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR);
 TemplateCache::setCache($cache);
 
 
-TemplateCache::warmup(__DIR__.'/test_file.xlsx', '&L&G&CTestausdruck', './test_logo.png', $entry, $data,'azua',  0, 200);
+//TemplateCache::warmup(__DIR__.'/test_file.xlsx', '&L&G&CTestausdruck', './test_logo.png', $entry, $data,'azua',  0, 200);
 
-//$template = new Template();
-//$template->setTemplate('test_file.xlsx', __DIR__);
-//$template->setLogo('./test_logo.png', '&L&G&CTestausdruck');
-//$template->setWorksheetName('Quittierungsbeleg');
-//$template->setData($data);
-//
-//
-//$template->save('output.xlsx', __DIR__.DIRECTORY_SEPARATOR);
-//
-//$ende = microtime(true);
-//
-//echo $ende - $start.PHP_EOL;
+$template = new Template();
+$template->setTemplate('test_file.xlsx', __DIR__);
+$template->setLogo('./test_logo.png', '&L&G&CTestausdruck');
+$template->setWorksheetName('Quittierungsbeleg');
+$template->setData($data);
+
+$template->save('output.xlsx', __DIR__.DIRECTORY_SEPARATOR);

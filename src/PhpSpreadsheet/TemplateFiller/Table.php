@@ -59,11 +59,13 @@ Class Table {
 			if (is_array($o)) {
 				$o = (object) $o;
 			}
-			if (gettype($o->$colname) == 'resource') {
-				self::addImage($worksheet, $o->$colname, $celldata['h'], $celldata['v'][$v]);
-			} else {
-				$selectedCell->setValue($o->$colname);
-			}
+			if (isset($o->$colname)) {
+                if (gettype($o->$colname) == 'resource') {
+                    self::addImage($worksheet, $o->$colname, $celldata['h'], $celldata['v'][$v]);
+                } else {
+                    $selectedCell->setValue($o->$colname);
+                }
+            }
 			$datapos++;
 
 			if (isset($celldata['v'][$v + 1]) === false)

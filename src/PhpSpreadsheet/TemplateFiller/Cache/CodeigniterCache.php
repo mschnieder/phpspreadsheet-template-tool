@@ -1,18 +1,29 @@
 <?php
+
+namespace PhpOffice\PhpSpreadsheet\TemplateFiller\Cache;
+
 /**
  * @author bloep
  */
-class CodeigniterCache implements Psr\SimpleCache\CacheInterface {
+class CodeigniterCache implements \Psr\SimpleCache\CacheInterface {
 
-    /** @var CI_Controller */
+    /** @var \CI_Controller */
     private $ci;
 
-    /** @var CI_Cache */
+    /** @var \CI_Cache */
     private $cache;
-    
-    public function __construct(CI_Controller $controller)
+
+    /** @var string */
+    private $_cache_path;
+
+    public function __construct(\CI_Controller $controller)
     {
         $this->ci = $controller;
+        $this->ci->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
+        $this->cache = $this->ci->cache;
+
+        $path = $this->ci->config->item('cache_path');
+        $this->_cache_path = ($path === '') ? APPPATH.'cache/' : $path;
     }
 
     /**
@@ -20,6 +31,7 @@ class CodeigniterCache implements Psr\SimpleCache\CacheInterface {
      */
     public function get($key, $default = null)
     {
+//        echo '[CACHE] GET '.$key.PHP_EOL;
         if ($r = $this->cache->get($key)) {
            return $r;
         }
@@ -31,6 +43,7 @@ class CodeigniterCache implements Psr\SimpleCache\CacheInterface {
      */
     public function set($key, $value, $ttl = null)
     {
+//        echo '[CACHE] SET '.$key.PHP_EOL;
         return $this->cache->save($key, $value, $ttl);
     }
 
@@ -39,6 +52,7 @@ class CodeigniterCache implements Psr\SimpleCache\CacheInterface {
      */
     public function delete($key)
     {
+//        echo '[CACHE] DELETE '.$key.PHP_EOL;
         return $this->cache->delete($key);
     }
 
@@ -47,6 +61,7 @@ class CodeigniterCache implements Psr\SimpleCache\CacheInterface {
      */
     public function clear()
     {
+//        echo '[CACHE] CLEAN'.PHP_EOL;
         return $this->cache->clean();
     }
 
@@ -79,6 +94,7 @@ class CodeigniterCache implements Psr\SimpleCache\CacheInterface {
      */
     public function has($key)
     {
-        return $this->cache->get_metadata($key) != null;
+//        echo '[CACHE] HAS '.$key.PHP_EOL;
+        return file_exists($this->_cache_path.$key);
     }
 }

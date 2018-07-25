@@ -1,14 +1,17 @@
 <?php
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
+use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Document\Security;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\File;
 use PhpOffice\PhpSpreadsheet\Style\Protection;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf;
 use Psr\SimpleCache\CacheInterface;
@@ -199,8 +202,29 @@ Class Template {
         $this->spreadsheet->getSecurity()->setLockWindows(true);
         $this->spreadsheet->getSecurity()->setWorkbookPassword($randomPW);
         $this->spreadsheet->getSecurity()->setRevisionsPassword($randomPW);
-        $this->spreadsheet->getActiveSheet()->getProtection()->setSheet(true);
-        $this->spreadsheet->getActiveSheet()->getProtection()->setPassword($randomPW);
+        $sheet = $this->spreadsheet->getActiveSheet();
+        $proctection = $sheet->getProtection();
+
+        $proctection->setSheet(true);
+        $proctection->setPassword($randomPW);
+        $proctection->setAutoFilter(true);
+        $proctection->setDeleteColumns(true);
+        $proctection->setDeleteRows(true);
+        $proctection->setFormatCells(true);
+        $proctection->setFormatColumns(true);
+        $proctection->setFormatRows(true);
+        $proctection->setInsertColumns(true);
+        $proctection->setInsertHyperlinks(true);
+        $proctection->setInsertRows(true);
+        $proctection->setObjects(true);
+        $proctection->setPivotTables(true);
+        $proctection->setScenarios(true);
+        $proctection->setSelectLockedCells(true);
+        $proctection->setSelectUnlockedCells(true);
+        $proctection->setSort(true);
+
+        $sheet->setPrintGridlines(false);
+        $sheet->setShowGridlines(false);
     }
 
 	public function save($filename, $path = '') {
@@ -209,6 +233,7 @@ Class Template {
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
         $writer->setIncludeCharts(true);
+        $writer->setPreCalculateFormulas(false);
 		$writer->save($path.$filename);
 	}
 
@@ -222,6 +247,7 @@ Class Template {
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
         $writer->setIncludeCharts(true);
+        $writer->setPreCalculateFormulas(false);
         $writer->save('php://output');
         exit();
 	}
