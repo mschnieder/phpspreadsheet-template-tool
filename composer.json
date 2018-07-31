@@ -18,13 +18,14 @@
     },
     {
       "name": "Marcel Kuhmann",
-      "email": "bloepes@outlook.com",
+      "email": "der_marcell@hotmail.com",
       "homepage": "https://github.com/bloep"
     }
   ],
   "autoload": {
     "psr-4" : {
-      "PhpOffice\\PhpSpreadsheet\\TemplateFiller\\": "src/PhpSpreadsheet/TemplateFiller"
+      "PhpOffice\\PhpSpreadsheet\\TemplateFiller\\": "src/PhpSpreadsheet/TemplateFiller",
+      "PhpOffice\\PhpSpreadsheet\\TemplateFiller\\Cache\\": "src/PhpSpreadsheet/TemplateFiller/Cache"
     }
   }
 }
