@@ -1,6 +1,7 @@
 <?php
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
+use PhpOffice\PhpSpreadsheet\Exception;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -26,18 +27,23 @@ class TemplateCache {
             $fileCache = $meta[$filename];
             $breakPoints = $fileCache['breakpoints'];
 
-            $additionalPages = 0;
             if($breakPoints[TemplateParser::ONEPAGER] >= $maxRows) {
-                $selectedType = TemplateParser::ONEPAGER;
-            } elseif ($breakPoints[TemplateParser::TWOPAGER] >= $maxRows) {
-                $selectedType = TemplateParser::TWOPAGER;
-            } else {
-                $selectedType = TemplateParser::MULTIPAGER;
-                $neededRows = $maxRows - $breakPoints[TemplateParser::TWOPAGER];
-                $additionalPages = ceil($neededRows / $breakPoints[TemplateParser::MULTIPAGER]);
+                return self::getCacheKey($filename, TemplateParser::ONEPAGER, 0);
             }
 
-            return self::getCacheKey($filename, $selectedType, $additionalPages);
+            if(!isset($breakPoints[TemplateParser::TWOPAGER])) {
+                throw new Exception('Table is too large for the given template and twopager doesn\'t exists');
+            }
+            if ($breakPoints[TemplateParser::TWOPAGER] >= $maxRows) {
+                return self::getCacheKey($filename, TemplateParser::TWOPAGER, 0);
+            }
+
+            if(!isset($breakPoints[TemplateParser::MULTIPAGER])) {
+                throw new Exception('Table is too large for the given template and multipager doesn\'t exists');
+            }
+            $neededRows = $maxRows - $breakPoints[TemplateParser::TWOPAGER];
+            $additionalPages = ceil($neededRows / $breakPoints[TemplateParser::MULTIPAGER]);
+            return self::getCacheKey($filename, TemplateParser::MULTIPAGER, 0);
         }
         return null;
     }

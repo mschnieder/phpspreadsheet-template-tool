@@ -2,6 +2,7 @@
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
@@ -24,6 +25,18 @@ class TemplateParser {
     const TWOPAGER = 'twopager';
     const MULTIPAGER = 'multipager';
 
+    const NAME_ONEPAGER = 'einseitig';
+    const NAME_TWOPAGER = 'zweiseitig';
+    const NAME_STARTPAGE = 'ersteseite';
+    const NAME_MULTIPAGER = 'mittlere';
+    const NAME_ENDPAGE = 'letzte';
+
+    const TPL_NORMAL = 0;
+    const TPL_ONEPAGEER_ONLY = 1;
+    const TPL_NO_TWOPAGER = 2;
+    const TPL_NO_MULTIPAGER = 3;
+
+
     /** @var array */
     private $variablesTable = [];
 
@@ -45,6 +58,9 @@ class TemplateParser {
     /** @var int */
     private $additionalPages = 0;
 
+    /** @var int */
+    private $spreadsheetType;
+
     /** @var string */
     private $path;
 
@@ -52,6 +68,7 @@ class TemplateParser {
     {
         $this->path = $path;
         $this->spreadsheet = IOFactory::load($path);
+        $this->detectTemplateStructure();
     }
 
     public function getBreakPoints() {
@@ -67,10 +84,16 @@ class TemplateParser {
             $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_ONEPAGER);
             return self::ONEPAGER;
         }
+        if(($this->hasWorksheetType(self::TWOPAGER) || $this->hasWorksheetType(self::MULTIPAGER)) === false) {
+            throw new Exception('Table is too large for the given template and twopager/multipager doesn\'t exists');
+        }
         if($rows <= $breakPoints[self::TWOPAGER]) {
             $this->selectedIndex = self::INDEX_TWOPAGER;
             $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_TWOPAGER);
             return self::TWOPAGER;
+        }
+        if($this->hasWorksheetType(self::MULTIPAGER) === false) {
+            throw new Exception('Table is too large for the given template and multipager doesn\'t exists');
         }
         $this->selectedIndex = self::INDEX_MULTIPAGER;
         $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE);
@@ -159,20 +182,6 @@ class TemplateParser {
         return false;
     }
 
-//    protected function checkType($dataCount, $variable) {
-//        $this->pagetablesize['onepager'] = $this->getTableSize($variable, 0);
-//        $this->pagetablesize['twopager'] = $this->getTableSize($variable, 1);
-//        $this->pagetablesize['multipager'] = $this->getTableSize($variable, 3);
-//
-//        if($dataCount <= $this->pagetablesize['onepager']) {
-//            return 'onepager';
-//        } else if($dataCount <= $this->pagetablesize['twopager']) {
-//            return 'twopager';
-//        } else {
-//            return 'multipager';
-//        }
-//    }
-
     protected function getTableSize($variable, $worksheetIndex) {
         $worksheet = $this->spreadsheet->getSheet($worksheetIndex);
 
@@ -256,11 +265,17 @@ class TemplateParser {
 
     private function getTableBreakpoints($variable)
     {
-        return [
+        $d = [
             'onepager' => $this->getTableSize($variable, self::INDEX_ONEPAGER),
-            'twopager' => $this->getTableSize($variable, self::INDEX_TWOPAGER),
-            'multipager' => $this->getTableSize($variable, self::INDEX_MULTIPAGER),
         ];
+        if ($this->hasWorksheetType(self::TWOPAGER)) {
+            $d['twopager'] = $this->getTableSize($variable, self::INDEX_TWOPAGER);
+        }
+        if ($this->hasWorksheetType(self::MULTIPAGER)) {
+            $d['multipager'] = $this->getTableSize($variable, self::INDEX_MULTIPAGER);
+        }
+
+        return $d;
     }
 
     public function hasTable()
@@ -421,5 +436,64 @@ class TemplateParser {
         $this->worksheet->getHeaderFooter()->setFirstHeader($header);
         $this->worksheet->getHeaderFooter()->setEvenHeader($header);
         $this->worksheet->getHeaderFooter()->setOddHeader($header);
+    }
+
+    private function detectTemplateStructure()
+    {
+        $sheetNames = $this->spreadsheet->getSheetNames();
+
+        $onepagerExists = false;
+        $twopagerExists = false;
+        $startpageExits = false;
+        $multipageExists = false;
+        $endpageExists = false;
+
+        foreach ($sheetNames as $name) {
+            if ($name === self::NAME_ONEPAGER) {
+                $onepagerExists = true;
+            }
+            if ($name === self::NAME_TWOPAGER) {
+                $twopagerExists = true;
+            }
+            if ($name === self::NAME_STARTPAGE) {
+                $startpageExits = true;
+            }
+            if ($name === self::NAME_MULTIPAGER) {
+                $multipageExists = true;
+            }
+            if ($name === self::NAME_ENDPAGE) {
+                $endpageExists = true;
+            }
+        }
+
+        $multipageComplete = $startpageExits && $multipageExists && $endpageExists;
+
+        if ($onepagerExists && !$twopagerExists && !$multipageComplete) {
+            $this->spreadsheetType = self::TPL_ONEPAGEER_ONLY;
+        }
+        if ($onepagerExists && !$twopagerExists && $multipageComplete) {
+            $this->spreadsheetType = self::TPL_NO_TWOPAGER;
+        }
+        if ($onepagerExists && $twopagerExists && !$multipageComplete) {
+            $this->spreadsheetType = self::TPL_NO_MULTIPAGER;
+        }
+        if ($onepagerExists && $twopagerExists && $multipageComplete) {
+            $this->spreadsheetType = self::TPL_NORMAL;
+        }
+        return $this->spreadsheetType;
+    }
+
+    public function hasWorksheetType($type) {
+        $sheetType = $this->spreadsheetType;
+        if ($type === self::ONEPAGER) {
+            return true; // Ist aktuell immer dabei
+        }
+        if ($type === self::TWOPAGER) {
+            return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_MULTIPAGER;
+        }
+        if ($type === self::MULTIPAGER) {
+            return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_TWOPAGER;
+        }
+        throw new \InvalidArgumentException('"'.$type.'" is not a valid option');
     }
 }

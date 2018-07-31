@@ -194,8 +194,12 @@ Class Template {
         }
 	}
 
-	private function lock() {
-        $randomPW = bin2hex(openssl_random_pseudo_bytes(64));
+	private function lock($password = null) {
+	    if ($password) {
+	       $randomPW = $password;
+        } else {
+            $randomPW = bin2hex(openssl_random_pseudo_bytes(64));
+        }
 
         $this->spreadsheet->getSecurity()->setLockRevision(true);
         $this->spreadsheet->getSecurity()->setLockStructure(true);
@@ -229,7 +233,6 @@ Class Template {
 
 	public function save($filename, $path = '') {
 		$this->cleanup();
-		$this->lock();
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
         $writer->setIncludeCharts(true);
@@ -239,7 +242,6 @@ Class Template {
 
 	public function sendToBrowser($filename) {
         $this->cleanup();
-        $this->lock();
 
         header('Content-Type: application/vnd.ms-excel');
         header('Content-Disposition: attachment;filename="'.$filename.'"');
