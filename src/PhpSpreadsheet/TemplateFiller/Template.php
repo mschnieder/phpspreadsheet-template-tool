@@ -194,7 +194,7 @@ Class Template {
         }
 	}
 
-	private function lock($password = null) {
+	public function lock($password = null) {
 	    if ($password) {
 	       $randomPW = $password;
         } else {
