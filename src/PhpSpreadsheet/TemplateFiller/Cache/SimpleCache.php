@@ -1,4 +1,5 @@
 <?php
+
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller\Cache;
 
 use PhpOffice\PhpSpreadsheet\Exception;
@@ -7,25 +8,26 @@ use Psr\SimpleCache\CacheInterface;
 /**
  * @author bloep
  */
-class SimpleCache implements CacheInterface {
-
+class SimpleCache implements CacheInterface
+{
     private $cacheDir;
 
-    public function setCacheDir($dir) {
-        if(file_exists($dir)) {
-            if(!is_readable($dir)) {
+    public function setCacheDir($dir)
+    {
+        if (file_exists($dir)) {
+            if (!is_readable($dir)) {
                 throw new Exception('Directory '.$dir. ' is not readable');
             }
-            if(!is_writable($dir)) {
+            if (!is_writable($dir)) {
                 throw new Exception('Directory '.$dir. ' is not writeable');
             }
         } else {
-            if(mkdir($dir, 0777, true) === false) {
+            if (mkdir($dir, 0777, true) === false) {
                 throw new Exception('Directory '.dirname($dir). ' is not writeable');
             }
         }
 
-        if(file_exists($dir) && is_readable($dir) && is_writable($dir)) {
+        if (file_exists($dir) && is_readable($dir) && is_writable($dir)) {
             $this->cacheDir = $dir;
             return true;
         }
@@ -33,7 +35,8 @@ class SimpleCache implements CacheInterface {
         throw new Exception('Directory '.$dir. ' not found and cannot created');
     }
 
-    private function getFilePath($key) {
+    private function getFilePath($key)
+    {
         return $this->cacheDir.$key.'.cache';
     }
 
@@ -79,7 +82,7 @@ class SimpleCache implements CacheInterface {
 
         /** @var \SplFileInfo $item */
         foreach ($it as $item) {
-            if($item->isFile() && $item->isReadable()) {
+            if ($item->isFile() && $item->isReadable()) {
                 if (unlink($item->getRealPath()) === false) {
                     return false;
                 }
@@ -94,7 +97,7 @@ class SimpleCache implements CacheInterface {
     public function getMultiple($keys, $default = null)
     {
         $results = [];
-        foreach($keys as $key) {
+        foreach ($keys as $key) {
             $results[$key] = $this->get($key, $default);
         }
         return $results;
@@ -105,7 +108,7 @@ class SimpleCache implements CacheInterface {
      */
     public function setMultiple($values, $ttl = null)
     {
-        foreach($values as $key => $value) {
+        foreach ($values as $key => $value) {
             if ($this->set($key, $value) === false) {
                 return false;
             }
@@ -118,7 +121,7 @@ class SimpleCache implements CacheInterface {
      */
     public function deleteMultiple($keys)
     {
-        foreach($keys as $key) {
+        foreach ($keys as $key) {
             if ($this->delete($key) === false) {
                 return false;
             }

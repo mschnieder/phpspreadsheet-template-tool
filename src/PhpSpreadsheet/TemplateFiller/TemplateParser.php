@@ -1,4 +1,5 @@
 <?php
+
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -8,13 +9,13 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Psr\SimpleCache\CacheInterface;
 
 /**
  * @author bloep
  */
 
-class TemplateParser {
+class TemplateParser
+{
     const INDEX_ONEPAGER = 0;
     const INDEX_TWOPAGER = 1;
     const INDEX_STARTPAGE = 2;
@@ -35,7 +36,6 @@ class TemplateParser {
     const TPL_ONEPAGEER_ONLY = 1;
     const TPL_NO_TWOPAGER = 2;
     const TPL_NO_MULTIPAGER = 3;
-
 
     /** @var array */
     private $variablesTable = [];
@@ -71,28 +71,30 @@ class TemplateParser {
         $this->detectTemplateStructure();
     }
 
-    public function getBreakPoints() {
+    public function getBreakPoints()
+    {
         return $this->breakPoints;
     }
 
-    public function getTemplateMode($rows) {
+    public function getTemplateMode($rows)
+    {
         $breakPoints = $this->getBreakPoints();
         $breakPoints = reset($breakPoints);
 
-        if($rows <= $breakPoints[self::ONEPAGER]) {
+        if ($rows <= $breakPoints[self::ONEPAGER]) {
             $this->selectedIndex = self::INDEX_ONEPAGER;
             $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_ONEPAGER);
             return self::ONEPAGER;
         }
-        if(($this->hasWorksheetType(self::TWOPAGER) || $this->hasWorksheetType(self::MULTIPAGER)) === false) {
+        if (($this->hasWorksheetType(self::TWOPAGER) || $this->hasWorksheetType(self::MULTIPAGER)) === false) {
             throw new Exception('Table is too large for the given template and twopager/multipager doesn\'t exists');
         }
-        if($rows <= $breakPoints[self::TWOPAGER]) {
+        if ($rows <= $breakPoints[self::TWOPAGER]) {
             $this->selectedIndex = self::INDEX_TWOPAGER;
             $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_TWOPAGER);
             return self::TWOPAGER;
         }
-        if($this->hasWorksheetType(self::MULTIPAGER) === false) {
+        if ($this->hasWorksheetType(self::MULTIPAGER) === false) {
             throw new Exception('Table is too large for the given template and multipager doesn\'t exists');
         }
         $this->selectedIndex = self::INDEX_MULTIPAGER;
@@ -100,9 +102,10 @@ class TemplateParser {
         return self::MULTIPAGER;
     }
 
-    public function parseTemplate() {
+    public function parseTemplate()
+    {
         $sheetCount = $this->spreadsheet->getSheetCount();
-        for ($i=0;$i<$sheetCount; $i++) {
+        for ($i = 0; $i < $sheetCount; ++$i) {
             $worksheet = $this->spreadsheet->getSheet($i);
             $this->findVariables('', $worksheet);
         }
@@ -110,9 +113,9 @@ class TemplateParser {
         // Jetzt sind alle worksheets eingelesen und die variablen und größen geparsed.
 
         // If tables exist
-        if(count($this->variablesTable) > 0) {
+        if (count($this->variablesTable) > 0) {
             $values = reset($this->variablesTable);
-            foreach($values as $key => $val) {
+            foreach ($values as $key => $val) {
                 $tableVar = $val['variable'];
                 $parsedVar = self::getVariableName($tableVar);
                 $this->breakPoints[$parsedVar] = $this->getTableBreakpoints($tableVar);
@@ -120,11 +123,11 @@ class TemplateParser {
         }
 
         // jezt gibt es pro variable die table breakpoints
-
     }
 
-    public function findVariables($variable = '', &$worksheet, $vOffset = 1, $hOffset = 1) {
-        if(!$worksheet) {
+    public function findVariables($variable, &$worksheet, $vOffset = 1, $hOffset = 1)
+    {
+        if (!$worksheet) {
             $worksheet = $this->worksheet;
         }
         $title = $worksheet->getTitle();
@@ -135,17 +138,16 @@ class TemplateParser {
             $this->variablesTable[$title] = [];
         }
 
-
         $highestRow = $worksheet->getHighestRow();
         $highestColumn = $worksheet->getHighestColumn();
         $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn);
 
-        for($v = $vOffset; $v <= $highestRow; $v++) {
-            for($h = $hOffset; $h <= $highestColumnIndex; $h++) {
+        for ($v = $vOffset; $v <= $highestRow; ++$v) {
+            for ($h = $hOffset; $h <= $highestColumnIndex; ++$h) {
                 $inhalt = $worksheet->getCellByColumnAndRow($h, $v)->getValue();
-                if($variable != '') {
+                if ($variable != '') {
                     if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
-                        if(strpos($inhalt, $variable) !== false) {
+                        if (strpos($inhalt, $variable) !== false) {
                             $erg = [];
 
                             $ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
@@ -157,8 +159,8 @@ class TemplateParser {
                             }
                             return $erg;
                         }
-                    } else if (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
-                        if(strpos($inhalt, $variable) !== false) {
+                    } elseif (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
+                        if (strpos($inhalt, $variable) !== false) {
                             $ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
                             $erg = [];
                             if ($ext != false) {
@@ -173,7 +175,7 @@ class TemplateParser {
                 } else {
                     if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
                         $this->addVariable($title, $inhalt, $h, $v);
-                    } else if (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
+                    } elseif (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
                         $this->addVariableTable($worksheet, $inhalt, $h, $v);
                     }
                 }
@@ -182,21 +184,22 @@ class TemplateParser {
         return false;
     }
 
-    protected function getTableSize($variable, $worksheetIndex) {
+    protected function getTableSize($variable, $worksheetIndex)
+    {
         $worksheet = $this->spreadsheet->getSheet($worksheetIndex);
 
         $pos = $this->findVariables($variable, $worksheet);
 
-        if(!is_array($pos) || count($pos) == 0) {
+        if (!is_array($pos) || count($pos) == 0) {
             return 0;
         }
 
         $size = 0;
 
-        if(isset($pos['h'])) {
+        if (isset($pos['h'])) {
             $size = Table::countTableRows($worksheet, $variable, $pos['h'], $pos['v']);
         } else {
-            foreach($pos as $p) {
+            foreach ($pos as $p) {
                 $size += Table::countTableRows($worksheet, $variable, $p['h'], $p['v']);
             }
         }
@@ -205,18 +208,19 @@ class TemplateParser {
 
     /**
      * @param Worksheet $worksheet
-     * @param string $variable
-     * @param int $h
-     * @param int $v
+     * @param string    $variable
+     * @param int       $h
+     * @param int       $v
      */
-    protected function addVariableTable(&$worksheet, $variable, $h, $v) {
+    protected function addVariableTable(&$worksheet, $variable, $h, $v)
+    {
         $worksheetName = $worksheet->getTitle();
 
         $countV = $v + 1;
         $verticals = [];
         $verticals[] = $v;
-        while($countV < 1000) {
-            if($worksheet->getCellByColumnAndRow($h, $countV)->getValue() == '') {
+        while ($countV < 1000) {
+            if ($worksheet->getCellByColumnAndRow($h, $countV)->getValue() == '') {
                 $verticals[] = $countV;
             } else {
                 break;
@@ -225,41 +229,44 @@ class TemplateParser {
         }
         $verticals[] = $countV;
 
-        if(is_array($this->variablesTable[$worksheetName])) {
-            foreach($this->variablesTable[$worksheetName] as $key => $arr) {
-                if($variable == $arr['variable']) {
-                    foreach($verticals as $k => $v1)
+        if (is_array($this->variablesTable[$worksheetName])) {
+            foreach ($this->variablesTable[$worksheetName] as $key => $arr) {
+                if ($variable == $arr['variable']) {
+                    foreach ($verticals as $k => $v1) {
                         $this->variablesTable[$worksheetName][$key]['v'][] = $v1;
+                    }
                     return;
                 }
             }
         }
 
-        $var = ['variable' => $variable,
-                'h' => $h,
-                'v' => $verticals,
-                'tablesize' => Table::countTableRows($worksheet, $variable, $h, $v)];
-
-        $this->variablesTable[$worksheetName][] = $var;
-    }
-
-    protected function addVariable($worksheetName, $variable, $h, $v) {
-        $this->variables[$worksheetName][] = [
+        $this->variablesTable[$worksheetName][] = [
             'variable' => $variable,
             'h' => $h,
-            'v' => $v
+            'v' => $verticals,
+            'tablesize' => Table::countTableRows($worksheet, $variable, $h, $v),
         ];
     }
 
-    public static function getVariableName($uncleanvariable) {
-        $colname = explode('[', str_replace('§§', '', $uncleanvariable));
-        return $colname[0];
+    protected function addVariable($worksheetName, $variable, $h, $v)
+    {
+        $this->variables[$worksheetName][] = [
+            'variable' => $variable,
+            'h' => $h,
+            'v' => $v,
+        ];
     }
 
-    public static function getColName($uncleanvariable) {
+    public static function getVariableName($uncleanvariable)
+    {
+        return explode('[', str_replace('§§', '', $uncleanvariable))[0];
+    }
+
+    public static function getColName($uncleanvariable)
+    {
         $colname = explode('[', str_replace('§§', '', $uncleanvariable));
         $colname = str_replace(']END', '', $colname[1]);
-        $colname = str_replace("]", "", $colname);
+        $colname = str_replace(']', '', $colname);
         return $colname;
     }
 
@@ -280,8 +287,8 @@ class TemplateParser {
 
     public function hasTable()
     {
-        foreach($this->variablesTable as $sheetName => $value) {
-            if(count($value) > 0) {
+        foreach ($this->variablesTable as $sheetName => $value) {
+            if (count($value) > 0) {
                 return true;
             }
         }
@@ -308,26 +315,28 @@ class TemplateParser {
         return $this->variablesTable[$sheet->getTitle()];
     }
 
-    public static function getIndexByTypeName($type) {
-        if($type === self::ONEPAGER) {
+    public static function getIndexByTypeName($type)
+    {
+        if ($type === self::ONEPAGER) {
             return self::INDEX_ONEPAGER;
         }
-        if($type === self::TWOPAGER) {
+        if ($type === self::TWOPAGER) {
             return self::INDEX_TWOPAGER;
         }
-        if($type === self::MULTIPAGER) {
+        if ($type === self::MULTIPAGER) {
             return self::INDEX_STARTPAGE;
         }
     }
 
-    public static function getTypeNameByIndex($index) {
-        if($index === self::INDEX_ONEPAGER) {
+    public static function getTypeNameByIndex($index)
+    {
+        if ($index === self::INDEX_ONEPAGER) {
             return self::ONEPAGER;
         }
-        if($index === self::INDEX_TWOPAGER) {
+        if ($index === self::INDEX_TWOPAGER) {
             return self::TWOPAGER;
         }
-        if($index === self::INDEX_STARTPAGE || $index === self::INDEX_MULTIPAGER || $index === self::INDEX_ENDPAGE) {
+        if ($index === self::INDEX_STARTPAGE || $index === self::INDEX_MULTIPAGER || $index === self::INDEX_ENDPAGE) {
             return self::MULTIPAGER;
         }
     }
@@ -360,17 +369,19 @@ class TemplateParser {
         $this->findVariables('', $this->worksheet);
     }
 
-    public function createNewTemplate($tableSize, $worksheetName = null) {
+    public function createNewTemplate($tableSize, $worksheetName = null)
+    {
         $createtype = $this->getTemplateMode($tableSize);
 
-        if($createtype === self::MULTIPAGER) {
+        if ($createtype === self::MULTIPAGER) {
             $this->appendNeededSheets($tableSize);
         }
 
         $curIndex = 0;
-        while($this->spreadsheet->getSheetCount() > 1) {
-            if($curIndex === $this->spreadsheet->getIndex($this->worksheet))
-                $curIndex++;
+        while ($this->spreadsheet->getSheetCount() > 1) {
+            if ($curIndex === $this->spreadsheet->getIndex($this->worksheet)) {
+                ++$curIndex;
+            }
 
             $sheet = $this->spreadsheet->getSheet($curIndex);
             $title = $sheet->getTitle();
@@ -382,7 +393,7 @@ class TemplateParser {
         $this->spreadsheet->setActiveSheetIndex(0);
         $this->worksheet = $this->spreadsheet->getActiveSheet();
 
-        if($worksheetName) {
+        if ($worksheetName) {
             $title = $this->worksheet->getTitle();
             $this->variables[$worksheetName] = $this->variables[$title];
             $this->variablesTable[$worksheetName] = $this->variablesTable[$title];
@@ -400,7 +411,8 @@ class TemplateParser {
         return $this->worksheet;
     }
 
-    public function getPreparedSpreadsheet() {
+    public function getPreparedSpreadsheet()
+    {
         return $this->spreadsheet;
     }
 
@@ -414,7 +426,8 @@ class TemplateParser {
         return $this->path;
     }
 
-    public function getSelectedMode() {
+    public function getSelectedMode()
+    {
         return self::getTypeNameByIndex($this->selectedIndex);
     }
 
@@ -483,7 +496,8 @@ class TemplateParser {
         return $this->spreadsheetType;
     }
 
-    public function hasWorksheetType($type) {
+    public function hasWorksheetType($type)
+    {
         $sheetType = $this->spreadsheetType;
         if ($type === self::ONEPAGER) {
             return true; // Ist aktuell immer dabei

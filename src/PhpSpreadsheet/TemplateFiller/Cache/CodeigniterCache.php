@@ -5,8 +5,8 @@ namespace PhpOffice\PhpSpreadsheet\TemplateFiller\Cache;
 /**
  * @author bloep
  */
-class CodeigniterCache implements \Psr\SimpleCache\CacheInterface {
-
+class CodeigniterCache implements \Psr\SimpleCache\CacheInterface
+{
     /** @var \CI_Controller */
     private $ci;
 
@@ -19,7 +19,7 @@ class CodeigniterCache implements \Psr\SimpleCache\CacheInterface {
     public function __construct(\CI_Controller $controller)
     {
         $this->ci = $controller;
-        $this->ci->load->driver('cache', array('adapter' => 'apc', 'backup' => 'file'));
+        $this->ci->load->driver('cache', ['adapter' => 'apc', 'backup' => 'file']);
         $this->cache = $this->ci->cache;
 
         $path = $this->ci->config->item('cache_path');
@@ -33,7 +33,7 @@ class CodeigniterCache implements \Psr\SimpleCache\CacheInterface {
     {
 //        echo '[CACHE] GET '.$key.PHP_EOL;
         if ($r = $this->cache->get($key)) {
-           return $r;
+            return $r;
         }
         return $default;
     }

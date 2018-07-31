@@ -1,22 +1,12 @@
 <?php
+
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
-use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Document\Security;
 use PhpOffice\PhpSpreadsheet\Exception;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\File;
-use PhpOffice\PhpSpreadsheet\Style\Protection;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter;
-use PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing;
-use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf;
-use Psr\SimpleCache\CacheInterface;
 
-Class Template {
+class Template
+{
     const INDEX_ONEPAGER = 0;
     const INDEX_TWOPAGER = 1;
     const INDEX_MULTIPAGER = 3;
@@ -25,17 +15,16 @@ Class Template {
     const TWOPAGER = 'twopager';
     const MULTIPAGER = 'multipager';
 
-
     /** @var \PhpOffice\PhpSpreadsheet\Spreadsheet */
-	protected $spreadsheet;
+    protected $spreadsheet;
 
     /** @var \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet */
-	protected $worksheet;
+    protected $worksheet;
 
-	/** @var string */
-	protected $path;
+    /** @var string */
+    protected $path;
 
-	/** @var array */
+    /** @var array */
     protected $variablesTable;
 
     /** @var array */
@@ -59,51 +48,57 @@ Class Template {
     /** @var array */
     protected $logo;
 
-    public function __construct() {
-		$this->path = '';
-		$this->variables = [];
-		$this->variablesTable = [];
-	}
-
-	/**
-	 * @param $filename
-	 * @param $path
-	 * @throws \PhpOffice\PhpSpreadsheet\Exception
-	 * @throws \PhpOffice\PhpSpreadsheet\Reader\Exception
-	 * Set the Filename for the Template
-	 */
-	public function setTemplate($filename, $path) {
-        $this->path = $path."/".$filename;
-        $this->templateCache = new TemplateCache();
-	}
-
-	public function setWorksheetName($name) {
-	    $this->worksheetName = $name;
+    public function __construct()
+    {
+        $this->path = '';
+        $this->variables = [];
+        $this->variablesTable = [];
     }
 
-	public function setData($d){
-	    $this->data = $d;
+    /**
+     * Set the Filename for the Template.
+     *
+     * @param $filename
+     * @param $path
+     *
+     * @throws \PhpOffice\PhpSpreadsheet\Exception
+     * @throws \PhpOffice\PhpSpreadsheet\Reader\Exception
+     */
+    public function setTemplate($filename, $path)
+    {
+        $this->path = $path.'/'.$filename;
+        $this->templateCache = new TemplateCache();
+    }
 
-	    if ($this->hasTable($d)) {
-	        list($maxRows, $maxRowsVar) = $this->getMaxTableEntries($d);
+    public function setWorksheetName($name)
+    {
+        $this->worksheetName = $name;
+    }
 
-	        $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
+    public function setData($d)
+    {
+        $this->data = $d;
 
-	        if($cachedTemplateKey && $this->templateCache->exists($cachedTemplateKey) && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
-	            $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);
-	            if (!$this->templateParser) {
-	                throw new Exception('Fehler beim lesen der Cache-Datei');
+        if ($this->hasTable($d)) {
+            list($maxRows, $maxRowsVar) = $this->getMaxTableEntries($d);
+
+            $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
+
+            if ($cachedTemplateKey && $this->templateCache->exists($cachedTemplateKey) && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
+                $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);
+                if (!$this->templateParser) {
+                    throw new Exception('Fehler beim lesen der Cache-Datei');
                 }
             } else {
-	            $this->templateParser = new TemplateParser($this->path);
-	            $this->templateParser->parseTemplate();
-	            $this->templateParser->createNewTemplate($maxRows, $this->worksheetName);
+                $this->templateParser = new TemplateParser($this->path);
+                $this->templateParser->parseTemplate();
+                $this->templateParser->createNewTemplate($maxRows, $this->worksheetName);
 
-	            if($this->logo) {
-	                call_user_func_array([$this->templateParser, 'setLogo'], $this->logo);
+                if ($this->logo) {
+                    call_user_func_array([$this->templateParser, 'setLogo'], $this->logo);
                 }
 
-	            $this->templateCache->store($this->templateParser);
+                $this->templateCache->store($this->templateParser);
             }
 
             $createtype = self::ONEPAGER;
@@ -116,87 +111,92 @@ Class Template {
             $this->worksheet = $this->templateParser->getPreparedWorksheet();
             $this->spreadsheet = $this->templateParser->getPreparedSpreadsheet();
         } else {
-	        throw new Exception('not working now');
+            throw new Exception('not working now');
         }
-	    $this->_setData($d);
+        $this->_setData($d);
     }
 
-	public function _setData($d) {
-		if($this->templateParser->hasTable()) {
-			foreach($this->variablesTable as $key => $celldata) {
-				$celldata['variable_blank'] = TemplateParser::getColName($celldata['variable']);
+    public function _setData($d)
+    {
+        if ($this->templateParser->hasTable()) {
+            foreach ($this->variablesTable as $key => $celldata) {
+                $celldata['variable_blank'] = TemplateParser::getColName($celldata['variable']);
                 Table::fill($this->worksheet, $celldata, $d[TemplateParser::getVariableName($celldata['variable'])]);
-			}
+            }
             $this->fillData($d);
-		} else {
-		    throw new Exception('noch nicht fertig');
-//			$this->findVariables();
-//			$this->fillData($d);
-		}
-		$this->writeVariables();
+        } else {
+            throw new Exception('noch nicht fertig');
+//          $this->findVariables();
+//          $this->fillData($d);
+        }
+        $this->writeVariables();
     }
 
-	private function fillData($d) {
-		foreach($this->variables as $key => $val) {
-			if(strpos($val['variable'], "[") === false && !is_array($val['v'])) {
+    private function fillData($d)
+    {
+        foreach ($this->variables as $key => $val) {
+            if (strpos($val['variable'], '[') === false && !is_array($val['v'])) {
                 $varname = TemplateParser::getVariableName($val['variable']);
                 if (!isset($d[$varname])) {
-                	continue;
+                    continue;
                 }
-                if(gettype($d[$varname]) == 'resource') {
+                if (gettype($d[$varname]) == 'resource') {
                     Table::addImage($this->worksheet, $d[$varname], $val['h'], $val['v'], 163, 500, 30);
                 } else {
-					$this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$varname]);
+                    $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$varname]);
                 }
-			}
-		}
-	}
+            }
+        }
+    }
 
-	public function setLogo($path, $header, $position = HeaderFooter::IMAGE_HEADER_LEFT, $width = 90) {
-	    $this->logo = func_get_args();
+    public function setLogo($path, $header, $position = HeaderFooter::IMAGE_HEADER_LEFT, $width = 90)
+    {
+        $this->logo = func_get_args();
     }
 
     public function setProbeausdruck()
     {
-    	//TODO mit spreadsheet noch herausfinden
+        //TODO mit spreadsheet noch herausfinden
     }
 
     protected function writeVariables()
     {
-		foreach ($this->variables as $key => $val) {
-			if (isset($val['value']))  {
+        foreach ($this->variables as $key => $val) {
+            if (isset($val['value'])) {
                 $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($val['value']);
             }
-		}
-	}
+        }
+    }
 
-	private function cleanup() {
-		if(is_array($this->variables) && count($this->variables) > 0) {
-            foreach($this->variables as $variable) {
+    private function cleanup()
+    {
+        if (is_array($this->variables) && count($this->variables) > 0) {
+            foreach ($this->variables as $variable) {
                 $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v']);
-                if(strpos($cell->getValue(), '§§') === 0) {
+                if (strpos($cell->getValue(), '§§') === 0) {
                     $cell->setValue('');
                 }
             }
         }
 
-        if(is_array($this->variablesTable) && count($this->variablesTable) > 0) {
-            foreach($this->variablesTable as $variable) {
+        if (is_array($this->variablesTable) && count($this->variablesTable) > 0) {
+            foreach ($this->variablesTable as $variable) {
                 $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][0]);
-                if(strpos($cell->getValue(), '§§') === 0) {
+                if (strpos($cell->getValue(), '§§') === 0) {
                     $cell->setValue('');
                 }
-                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][sizeof($variable['v']) -1]);
-                if(strpos($cell->getValue(), '§§') === 0) {
+                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][count($variable['v']) - 1]);
+                if (strpos($cell->getValue(), '§§') === 0) {
                     $cell->setValue('');
                 }
             }
         }
-	}
+    }
 
-	public function lock($password = null) {
-	    if ($password) {
-	       $randomPW = $password;
+    public function lock($password = null)
+    {
+        if ($password) {
+            $randomPW = $password;
         } else {
             $randomPW = bin2hex(openssl_random_pseudo_bytes(64));
         }
@@ -231,16 +231,18 @@ Class Template {
         $sheet->setShowGridlines(false);
     }
 
-	public function save($filename, $path = '') {
-		$this->cleanup();
+    public function save($filename, $path = '')
+    {
+        $this->cleanup();
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($this->spreadsheet);
         $writer->setIncludeCharts(true);
         $writer->setPreCalculateFormulas(false);
-		$writer->save($path.$filename);
-	}
+        $writer->save($path.$filename);
+    }
 
-	public function sendToBrowser($filename) {
+    public function sendToBrowser($filename)
+    {
         $this->cleanup();
 
         header('Content-Type: application/vnd.ms-excel');
@@ -252,12 +254,12 @@ Class Template {
         $writer->setPreCalculateFormulas(false);
         $writer->save('php://output');
         exit();
-	}
+    }
 
     private function hasTable($data)
     {
-        foreach($data as $varname => $cellData) {
-            if(is_array($cellData) && count($cellData) > 0) {
+        foreach ($data as $varname => $cellData) {
+            if (is_array($cellData) && count($cellData) > 0) {
                 return true;
             }
         }
@@ -268,10 +270,10 @@ Class Template {
     {
         $maxRowsName = '';
         $maxRows = 0;
-        foreach($d as $varName => $value) {
-            if(is_array($value)) {
+        foreach ($d as $varName => $value) {
+            if (is_array($value)) {
                 $rows = count($value);
-                if($maxRows < $rows) {
+                if ($maxRows < $rows) {
                     $maxRows = $rows;
                     $maxRowsName = $varName;
                 }
