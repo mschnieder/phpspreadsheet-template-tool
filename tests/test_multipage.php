@@ -54,7 +54,6 @@ $cache->setCacheDir(__DIR__.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR);
 
 TemplateCache::setCache($cache);
 
-
 //TemplateCache::warmup(__DIR__.'/test_file.xlsx', '&L&G&CTestausdruck', './test_logo.png', $entry, $data,'azua',  0, 200);
 
 $template = new Template();

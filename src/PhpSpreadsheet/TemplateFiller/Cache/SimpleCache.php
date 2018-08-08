@@ -11,6 +11,7 @@ use Psr\SimpleCache\CacheInterface;
 class SimpleCache implements CacheInterface
 {
     private $cacheDir;
+    private $useIgbinary = false;
 
     public function setCacheDir($dir)
     {
@@ -31,6 +32,10 @@ class SimpleCache implements CacheInterface
             $this->cacheDir = $dir;
             return true;
         }
+        
+        if(function_exists('igbinary_serialize') && function_exists('igbinary_unserialize')) {
+            $this->useIgbinary = true;
+        }
 
         throw new Exception('Directory '.$dir. ' not found and cannot created');
     }
@@ -47,7 +52,11 @@ class SimpleCache implements CacheInterface
     {
         $file = $this->getFilePath($key);
         if (file_exists($file)) {
-            return unserialize(file_get_contents($file));
+            if($this->useIgbinary) {
+                return igbinary_unserialize(file_get_contents($file));
+            } else {
+                return unserialize(file_get_contents($file));
+            }
         }
         return $default;
     }
@@ -58,7 +67,11 @@ class SimpleCache implements CacheInterface
     public function set($key, $value, $ttl = null)
     {
         $file = $this->getFilePath($key);
-        return file_put_contents($file, serialize($value));
+        if($this->useIgbinary) {
+            return file_put_contents($file, igbinary_serialize($value));
+        } else {
+            return file_put_contents($file, serialize($value));
+        }
     }
 
     /**

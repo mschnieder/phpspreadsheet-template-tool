@@ -107,6 +107,7 @@ class TemplateCache
             $filename = basename($path);
 
             $cacheKey = $templateParser->getCacheKey();
+            $templateParser->garbageCollect();
             self::$cacheClass->set($cacheKey, $templateParser);
 
             $meta = $this->getTemplateMeta();

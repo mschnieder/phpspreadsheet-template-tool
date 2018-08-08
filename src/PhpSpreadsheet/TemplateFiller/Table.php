@@ -2,6 +2,7 @@
 
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class Table
@@ -59,7 +60,6 @@ class Table
         $selectedCell = $worksheet->getCellByColumnAndRow($celldata['h'], $celldata['v'][0]);
         $colname = $celldata['variable_blank'];
 
-        $datapos = 0;
         $v = 0;
 
         foreach ($data as $key => $o) {
@@ -73,7 +73,6 @@ class Table
                     $selectedCell->setValue($o[$colname]);
                 }
             }
-            ++$datapos;
 
             if (isset($celldata['v'][$v + 1]) === false) {
                 break 1;

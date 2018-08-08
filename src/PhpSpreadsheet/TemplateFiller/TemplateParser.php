@@ -128,7 +128,7 @@ class TemplateParser
     public function findVariables($variable, &$worksheet, $vOffset = 1, $hOffset = 1)
     {
         if (!$worksheet) {
-            $worksheet = $this->worksheet;
+            $worksheet = &$this->worksheet;
         }
         $title = $worksheet->getTitle();
         if (!isset($this->variables[$title])) {
@@ -401,9 +401,6 @@ class TemplateParser
             unset($this->variables[$title]);
             $this->worksheet->setTitle($worksheetName);
         }
-
-        $this->spreadsheet->garbageCollect();
-        $this->worksheet->garbageCollect();
     }
 
     public function getPreparedWorksheet()
@@ -509,5 +506,11 @@ class TemplateParser
             return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_TWOPAGER;
         }
         throw new \InvalidArgumentException('"'.$type.'" is not a valid option');
+    }
+
+    public function garbageCollect()
+    {
+        $this->spreadsheet->garbageCollect();
+        $this->worksheet->garbageCollect();
     }
 }

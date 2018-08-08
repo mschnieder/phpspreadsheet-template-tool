@@ -3,6 +3,7 @@
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class Utils
@@ -10,7 +11,7 @@ class Utils
     protected $cols;
     protected $rows;
 
-    public static function appendSheet(Worksheet &$src, Worksheet $dst)
+    public static function appendSheet(Worksheet &$src, Worksheet &$dst)
     {
         $srcColMax = $src->getHighestColumn();
         $srcRowMax = $src->getHighestRow();
@@ -18,6 +19,8 @@ class Utils
         $dstRow = $dst->getHighestRow() + 1;
         $dstCol = 'A';
 
+
+        // Merge Cells
         foreach ($src->getMergeCells() as $mergeCell) {
             $mc = explode(':', $mergeCell);
             $col_s = preg_replace('/[0-9]*/', '', $mc[0]);
@@ -31,12 +34,14 @@ class Utils
             }
         }
 
+        // Copy data
         $data = $src->rangeToArray('A1:' . $srcColMax.$srcRowMax);
         $dst->fromArray($data, null, $dstCol . $dstRow);
 
         $colMax = Coordinate::columnIndexFromString($srcColMax);
         $rowMax = $srcRowMax;
 
+        // Copy style
         for ($col = 1; $col <= $colMax; ++$col) {
             $colLetter = Coordinate::stringFromColumnIndex($col);
             for ($row = 1; $row <= $rowMax; ++$row) {
@@ -61,6 +66,23 @@ class Utils
             $dstDim->setRowIndex($dim->getRowIndex());
             $dstDim->setVisible($dim->getVisible());
             $dstDim->setZeroHeight($dim->getZeroHeight());
+        }
+
+
+        // Copy images
+        $drawings = $src->getDrawingCollection();
+
+        if (count($drawings) > 0) {
+            foreach ($drawings as $drawing) {
+                $coords = $drawing->getCoordinates();
+
+                $coords = self::parseCoord($coords);
+
+                $coords = $coords[0].($coords[1] + $dstRow);
+                $drawing->setCoordinates($coords);
+
+                $drawing->setWorksheet($dst, true);
+            }
         }
     }
 
@@ -88,7 +110,7 @@ class Utils
     {
         for ($col = $srcFromPos['col']; $col <= $srcToPos['col']; ++$col) {
             $colindex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-            for ($row = $srcFromPos['row']; $row <= $srcFromPos['row']; ++$row) {
+            for ($row = $srcFromPos['row']; $row <= $srcToPos['row']; ++$row) {
                 $style = $srcSheet->getStyleByColumnAndRow($col, $row);
                 $dstSheet->duplicateStyle($style, $colindex . ($row + $dstFromPos['row']));
             }
@@ -135,5 +157,17 @@ class Utils
         $b = $dstSheet->getMergeCells();
         $c = array_merge($a, $b);
         $dstSheet->setMergeCells($c);
+    }
+
+    public static function parseCoord($coord) {
+        $matches = [];
+        preg_match('/[A-Za-z]+/', $coord, $matches);
+        $letters = $matches[0];
+
+        $matches = [];
+        preg_match('/\d+/', $coord, $matches);
+        $digits = $matches[0];
+
+        return [$letters, $digits];
     }
 }
