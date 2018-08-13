@@ -106,7 +106,11 @@ class Template
             $this->variables = $this->templateParser->getVariablesByType($createtype);
             $this->variablesTable = $this->templateParser->getVariablesTableByType($createtype);
             $breakPoints = $this->templateParser->getBreakPoints();
-            $this->pagetablesize = $breakPoints[$maxRowsVar];
+            if ($maxRows > 0) {
+                $this->pagetablesize = $breakPoints[$maxRowsVar];
+            } else {
+                $this->pagetablesize = 0;
+            }
 
             $this->worksheet = $this->templateParser->getPreparedWorksheet();
             $this->spreadsheet = $this->templateParser->getPreparedSpreadsheet();
@@ -259,7 +263,7 @@ class Template
     private function hasTable($data)
     {
         foreach ($data as $varname => $cellData) {
-            if (is_array($cellData) && count($cellData) > 0) {
+            if (is_array($cellData)) {
                 return true;
             }
         }
