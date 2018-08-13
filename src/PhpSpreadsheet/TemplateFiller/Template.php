@@ -81,42 +81,44 @@ class Template
 
         if ($this->hasTable($d)) {
             list($maxRows, $maxRowsVar) = $this->getMaxTableEntries($d);
+        } else {
+            $maxRows = 0;
+            $maxRowsVar = '';
+        }
 
-            $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
+        $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
 
-            if ($cachedTemplateKey && $this->templateCache->exists($cachedTemplateKey) && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
-                $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);
-                if (!$this->templateParser) {
-                    throw new Exception('Fehler beim lesen der Cache-Datei');
-                }
-            } else {
-                $this->templateParser = new TemplateParser($this->path);
-                $this->templateParser->parseTemplate();
-                $this->templateParser->createNewTemplate($maxRows, $this->worksheetName);
+        if ($cachedTemplateKey && $this->templateCache->exists($cachedTemplateKey) && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
+            $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);
+            if (!$this->templateParser) {
+                throw new Exception('Fehler beim Lesen der Cache-Datei');
+            }
+        } else {
+            $this->templateParser = new TemplateParser($this->path);
+            $this->templateParser->parseTemplate();
+            $this->templateParser->createNewTemplate($maxRows, $this->worksheetName);
 
-                if ($this->logo) {
-                    call_user_func_array([$this->templateParser, 'setLogo'], $this->logo);
-                }
-
-                $this->templateCache->store($this->templateParser);
+            if ($this->logo) {
+                call_user_func_array([$this->templateParser, 'setLogo'], $this->logo);
             }
 
-            $createtype = self::ONEPAGER;
+            $this->templateCache->store($this->templateParser);
+        }
 
-            $this->variables = $this->templateParser->getVariablesByType($createtype);
-            $this->variablesTable = $this->templateParser->getVariablesTableByType($createtype);
+        $createtype = self::ONEPAGER;
+
+        $this->variables = $this->templateParser->getVariablesByType($createtype);
+        $this->variablesTable = $this->templateParser->getVariablesTableByType($createtype);
+        $this->pagetablesize = 0;
+        if ($this->hasTable($d)) {
             $breakPoints = $this->templateParser->getBreakPoints();
             if ($maxRows > 0) {
                 $this->pagetablesize = $breakPoints[$maxRowsVar];
-            } else {
-                $this->pagetablesize = 0;
             }
-
-            $this->worksheet = $this->templateParser->getPreparedWorksheet();
-            $this->spreadsheet = $this->templateParser->getPreparedSpreadsheet();
-        } else {
-            throw new Exception('not working now');
         }
+
+        $this->worksheet = $this->templateParser->getPreparedWorksheet();
+        $this->spreadsheet = $this->templateParser->getPreparedSpreadsheet();
         $this->_setData($d);
     }
 
@@ -129,9 +131,7 @@ class Template
             }
             $this->fillData($d);
         } else {
-            throw new Exception('noch nicht fertig');
-//          $this->findVariables();
-//          $this->fillData($d);
+          $this->fillData($d);
         }
         $this->writeVariables();
     }
