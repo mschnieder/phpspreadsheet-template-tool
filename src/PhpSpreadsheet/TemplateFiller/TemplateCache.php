@@ -34,18 +34,23 @@ class TemplateCache
                 return self::getCacheKey($filename, TemplateParser::ONEPAGER, 0);
             }
 
-            if (!isset($breakPoints[TemplateParser::TWOPAGER])) {
+            if (!isset($breakPoints[TemplateParser::TWOPAGER]) && !isset($breakPoints[TemplateParser::MULTIPAGER])) {
                 throw new Exception('Table is too large for the given template and twopager doesn\'t exists');
             }
-            if ($breakPoints[TemplateParser::TWOPAGER] >= $maxRows) {
+
+            if (isset($breakPoints[TemplateParser::TWOPAGER]) && $breakPoints[TemplateParser::TWOPAGER] >= $maxRows) {
                 return self::getCacheKey($filename, TemplateParser::TWOPAGER, 0);
             }
 
             if (!isset($breakPoints[TemplateParser::MULTIPAGER])) {
                 throw new Exception('Table is too large for the given template and multipager doesn\'t exists');
             }
-            $neededRows = $maxRows - $breakPoints[TemplateParser::TWOPAGER];
-            $additionalPages = ceil($neededRows / $breakPoints[TemplateParser::MULTIPAGER]);
+            if(isset($breakPoints[TemplateParser::TWOPAGER])) {
+                $neededRows = $maxRows - $breakPoints[TemplateParser::TWOPAGER];
+            } else {
+                $neededRows = $maxRows - ($breakPoints[TemplateParser::NAME_STARTPAGE] + $breakPoints[TemplateParser::NAME_ENDPAGE]);
+            }
+            $additionalPages = max(0, ceil($neededRows / $breakPoints[TemplateParser::MULTIPAGER]));
             return self::getCacheKey($filename, TemplateParser::MULTIPAGER, $additionalPages);
         }
         return null;
@@ -188,7 +193,9 @@ class TemplateCache
             // Trigger generator
             $doc = new Template();
             $doc->setTemplate($file, $dir);
-            $doc->setLogo($logo, $header);
+            if($logo && $header) {
+                $doc->setLogo($logo, $header);
+            }
             $doc->setWorksheetName('Quittierungsbeleg');
 
             $doc->setData($data);

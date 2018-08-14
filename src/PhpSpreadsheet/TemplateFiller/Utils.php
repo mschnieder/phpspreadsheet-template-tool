@@ -3,7 +3,8 @@
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Worksheet\BaseDrawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class Utils
@@ -55,7 +56,6 @@ class Utils
 
         // Copy row height
         // Cols sollte identisch wie erste seite sein
-
         for ($row = 1; $row <= $rowMax; ++$row) {
             $dim = $src->getRowDimension($row, true);
             $dstDim = $dst->getRowDimension($row + $dstRow - 1, true);
@@ -71,17 +71,20 @@ class Utils
 
         // Copy images
         $drawings = $src->getDrawingCollection();
-
         if (count($drawings) > 0) {
             foreach ($drawings as $drawing) {
                 $coords = $drawing->getCoordinates();
-
                 $coords = self::parseCoord($coords);
-
                 $coords = $coords[0].($coords[1] + $dstRow);
-                $drawing->setCoordinates($coords);
-
-                $drawing->setWorksheet($dst, true);
+                if ($drawing instanceof Drawing) {
+                    $drawingCopy = clone $drawing;
+                    $drawingCopy->setCoordinates($coords);
+                    $drawingCopy->setWorksheet($dst, true);
+                }
+                if ($drawing instanceof MemoryDrawing) {
+                    $drawing->setCoordinates($coords);
+                    $drawing->setWorksheet($dst, true);
+                }
             }
         }
     }

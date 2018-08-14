@@ -89,7 +89,7 @@ class TemplateParser
         if (($this->hasWorksheetType(self::TWOPAGER) || $this->hasWorksheetType(self::MULTIPAGER)) === false) {
             throw new Exception('Table is too large for the given template and twopager/multipager doesn\'t exists');
         }
-        if ($rows <= $breakPoints[self::TWOPAGER]) {
+        if (isset($breakPoints[self::TWOPAGER]) && $rows <= $breakPoints[self::TWOPAGER]) {
             $this->selectedIndex = self::INDEX_TWOPAGER;
             $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_TWOPAGER);
             return self::TWOPAGER;
@@ -97,8 +97,15 @@ class TemplateParser
         if ($this->hasWorksheetType(self::MULTIPAGER) === false) {
             throw new Exception('Table is too large for the given template and multipager doesn\'t exists');
         }
-        $this->selectedIndex = self::INDEX_MULTIPAGER;
-        $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE);
+
+        if (isset($breakPoints[self::TWOPAGER])) {
+            $this->selectedIndex = self::INDEX_MULTIPAGER;
+            $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE);
+        } else {
+            $this->selectedIndex = self::INDEX_MULTIPAGER - 1;
+            $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE - 1);
+        }
+
         return self::MULTIPAGER;
     }
 
@@ -281,6 +288,10 @@ class TemplateParser
         if ($this->hasWorksheetType(self::MULTIPAGER)) {
             $d['multipager'] = $this->getTableSize($variable, self::INDEX_MULTIPAGER);
         }
+        if (!$this->hasWorksheetType(self::TWOPAGER) && $this->hasWorksheetType(self::MULTIPAGER)) {
+            $d[self::NAME_STARTPAGE] = $this->getTableSize($variable, self::INDEX_STARTPAGE - 1);
+            $d[self::NAME_ENDPAGE] = $this->getTableSize($variable, self::INDEX_ENDPAGE - 1);
+        }
 
         return $d;
     }
@@ -346,15 +357,25 @@ class TemplateParser
         $breakPoints = $this->getBreakPoints();
         $breakPoints = reset($breakPoints);
 
-        $neededSize = $tableSize - $breakPoints[self::TWOPAGER];
+        if(isset($breakPoints[self::TWOPAGER])) {
+            $neededSize = $tableSize - $breakPoints[self::TWOPAGER];
+        } else {
+            $neededSize = $tableSize - ($breakPoints[self::NAME_STARTPAGE] + $breakPoints[self::NAME_ENDPAGE]);
+        }
+        $neededSize = max($neededSize, 0);
         $middleSize = $breakPoints[self::MULTIPAGER];
 
         $neededSheets = ceil($neededSize / $middleSize);
 
         $this->additionalPages = $neededSheets;
 
-        $middleSheet = $this->spreadsheet->getSheet(self::INDEX_MULTIPAGER);
-        $endSheet = $this->spreadsheet->getSheet(self::INDEX_ENDPAGE);
+        if(isset($breakPoints[self::TWOPAGER])) {
+            $middleSheet = $this->spreadsheet->getSheet(self::INDEX_MULTIPAGER);
+            $endSheet = $this->spreadsheet->getSheet(self::INDEX_ENDPAGE);
+        } else {
+            $middleSheet = $this->spreadsheet->getSheet(self::INDEX_MULTIPAGER - 1);
+            $endSheet = $this->spreadsheet->getSheet(self::INDEX_ENDPAGE - 1);
+        }
         for ($i = 0; $i < $neededSheets; ++$i) {
             Utils::appendSheet($middleSheet, $this->worksheet);
         }
