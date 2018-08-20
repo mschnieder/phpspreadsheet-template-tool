@@ -2,7 +2,6 @@
 
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class Table
@@ -86,28 +85,26 @@ class Table
     /**
      * @param Worksheet $worksheet
      * @param resource  $img
-     * @param int       $h         horizontal index
-     * @param int       $v         vertical index
+     * @param int       $h horizontal index
+     * @param int       $v vertical index
      * @param int       $width
-     * @param int       $offsetX
-     * @param int       $offsetY
+     * @param int       $height
      *
      * @throws \PhpOffice\PhpSpreadsheet\Exception
      */
-    public static function addImage(&$worksheet, $img, $h, $v, $width = 163, $offsetX = 200, $offsetY = 0)
+    public static function addImage(&$worksheet, $img, $h, $v, $width = 163, $height = 30)
     {
         //  Add the In-Memory image to a worksheet
         $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing();
         $drawing->setName('In-Memory Drawing 2');
         $drawing->setCoordinates($worksheet->getCellByColumnAndRow($h, $v)->getCoordinate());
-        $drawing->setOffsetX($offsetX);
-        $drawing->setOffsetY($offsetY);
         $drawing->setImageResource($img);
         $drawing->setRenderingFunction(
             \PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::RENDERING_PNG
         );
         $drawing->setMimeType(\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::MIMETYPE_DEFAULT);
         $drawing->setWidth($width);
+        $drawing->setHeight($height);
 
         $drawing->setWorksheet($worksheet);
         $worksheet->getCellByColumnAndRow($h, $v)->setValue('');
