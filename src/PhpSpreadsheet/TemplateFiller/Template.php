@@ -131,7 +131,7 @@ class Template
             }
             $this->fillData($d);
         } else {
-          $this->fillData($d);
+            $this->fillData($d);
         }
         $this->writeVariables();
     }
@@ -145,7 +145,7 @@ class Template
                     continue;
                 }
                 if (gettype($d[$varname]) == 'resource') {
-                    Table::addImage($this->worksheet, $d[$varname], $val['h'], $val['v'], 163, 500, 30);
+                    Table::addImage($this->worksheet, $d[$varname], $val['h'], $val['v'], 163, 30);
                 } else {
                     $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$varname]);
                 }
