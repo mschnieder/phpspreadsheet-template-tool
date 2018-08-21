@@ -3,6 +3,7 @@
 namespace PhpOffice\PhpSpreadsheet\TemplateFiller;
 
 use PhpOffice\PhpSpreadsheet\Exception;
+use PhpOffice\PhpSpreadsheet\Settings;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -189,6 +190,9 @@ class TemplateCache
                     echo 'Generating '.$cachedTemplateKey.PHP_EOL.PHP_EOL;
                 }
             }
+
+            // Clear Memory Cache
+            Settings::getCache()->clear();
 
             // Trigger generator
             $doc = new Template();
