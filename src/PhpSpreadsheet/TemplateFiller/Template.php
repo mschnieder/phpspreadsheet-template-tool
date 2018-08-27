@@ -126,28 +126,36 @@ class Template
     {
         if ($this->templateParser->hasTable()) {
             foreach ($this->variablesTable as $key => $celldata) {
-                $celldata['variable_blank'] = TemplateParser::getColName($celldata['variable']);
-                Table::fill($this->worksheet, $celldata, $d[TemplateParser::getVariableName($celldata['variable'])]);
+                $data = $d[TemplateParser::getVariableName($key)];
+                $tableKey = TemplateParser::getVariableTableKey($key);
+                $data = array_map(function($v) use ($tableKey) {
+                    if (is_object($v)) {
+                        $v = (array) $v;
+                    }
+                    return $v[$tableKey];
+                }, $data);
+                Table::fill($this->worksheet, $celldata, $data);
             }
-            $this->fillData($d);
-        } else {
-            $this->fillData($d);
         }
+        $this->fillData($d);
         $this->writeVariables();
     }
 
     private function fillData($d)
     {
-        foreach ($this->variables as $key => $val) {
-            if (strpos($val['variable'], '[') === false && !is_array($val['v'])) {
-                $varname = TemplateParser::getVariableName($val['variable']);
-                if (!isset($d[$varname])) {
+        foreach ($this->variables as $coord => $val) {
+            $coord = str_replace('-', '', $coord);
+            $value = $val['raw'];
+            foreach($val['vars'] as $i => $varName) {
+                if (!isset($d[$varName])) {
                     continue;
                 }
-                if (gettype($d[$varname]) == 'resource') {
-                    Table::addImage($this->worksheet, $d[$varname], $val['h'], $val['v'], 163, 30);
+                $cellValue = $d[$varName];
+                if (gettype($cellValue) == 'resource') {
+                    Table::addImageToCell($this->worksheet, $coord, $cellValue, 163, 30);
                 } else {
-                    $this->worksheet->getCellByColumnAndRow($val['h'], $val['v'])->setValue($d[$varname]);
+                    $value = str_replace($val['matches'][$i], $cellValue, $value);
+                    $this->worksheet->getCell($coord)->setValue($value);
                 }
             }
         }
@@ -175,23 +183,23 @@ class Template
     private function cleanup()
     {
         if (is_array($this->variables) && count($this->variables) > 0) {
-            foreach ($this->variables as $variable) {
-                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v']);
-                if (strpos($cell->getValue(), '§§') === 0) {
-                    $cell->setValue('');
-                }
+            foreach ($this->variables as $coord => $variable) {
+                $cell = $this->worksheet->getCell(str_replace('-', '', $coord));
+                $cell->setValue(str_replace($variable['raw'], '', $cell->getValue()));
             }
         }
 
         if (is_array($this->variablesTable) && count($this->variablesTable) > 0) {
             foreach ($this->variablesTable as $variable) {
-                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][0]);
-                if (strpos($cell->getValue(), '§§') === 0) {
-                    $cell->setValue('');
-                }
-                $cell = $this->worksheet->getCellByColumnAndRow($variable['h'], $variable['v'][count($variable['v']) - 1]);
-                if (strpos($cell->getValue(), '§§') === 0) {
-                    $cell->setValue('');
+                foreach ($variable as $tableSet) {
+                    $cell = $this->worksheet->getCell($tableSet['col'].$tableSet['begin']);
+                    if (strpos($cell->getValue(), '§§') === 0) {
+                        $cell->setValue('');
+                    }
+                    $cell = $this->worksheet->getCell($tableSet['col'].$tableSet['end']);
+                    if (strpos($cell->getValue(), '§§') === 0) {
+                        $cell->setValue('');
+                    }
                 }
             }
         }

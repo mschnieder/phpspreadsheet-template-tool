@@ -44,13 +44,13 @@ $data = [
     'gesamtstunden' => 100,
 ];
 
-for($i=0;$i<200;$i++)
+for($i=0;$i<100;$i++)
     $data['azua'][] = $entry;
 
 
 $cache = new SimpleCache();
 $cache->setCacheDir(__DIR__.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR);
-//$cache->clear();
+$cache->clear();
 
 TemplateCache::setCache($cache);
 

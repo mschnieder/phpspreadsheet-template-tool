@@ -123,9 +123,8 @@ class TemplateParser
         if (count($this->variablesTable) > 0) {
             $values = reset($this->variablesTable);
             foreach ($values as $key => $val) {
-                $tableVar = $val['variable'];
-                $parsedVar = self::getVariableName($tableVar);
-                $this->breakPoints[$parsedVar] = $this->getTableBreakpoints($tableVar);
+                $parsedVar = self::getVariableName($key);
+                $this->breakPoints[$parsedVar] = $this->getTableBreakpoints($key);
             }
         }
 
@@ -134,6 +133,9 @@ class TemplateParser
 
     public function findVariables($variable, &$worksheet, $vOffset = 1, $hOffset = 1)
     {
+        $this->findVariablesNew($worksheet);
+        return;
+
         if (!$worksheet) {
             $worksheet = &$this->worksheet;
         }
@@ -151,43 +153,99 @@ class TemplateParser
 
         for ($v = $vOffset; $v <= $highestRow; ++$v) {
             for ($h = $hOffset; $h <= $highestColumnIndex; ++$h) {
-                $inhalt = $worksheet->getCellByColumnAndRow($h, $v)->getValue();
-                if ($variable != '') {
-                    if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
-                        if (strpos($inhalt, $variable) !== false) {
-                            $erg = [];
+                $cell = $worksheet->getCellByColumnAndRow($h, $v, false);
+                if($cell) {
+                    $inhalt = $cell->getValue();
+                    preg_match_all('/§§([^§]+)§§/', $inhalt, $matches);
 
-                            $ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
-                            if ($ext != false) {
-                                $erg[] = $ext;
-                                $erg[] = ['h' => $h, 'v' => $v];
-                            } else {
-                                $erg = ['h' => $h, 'v' => $v];
+                    if(count($matches[0]) > 0) {
+                        $type = null;
+                        if ((strpos($matches[0][0], ']§§') === false && strpos($matches[0][0], ']END§§') === false) || (strpos($matches[0][0], '[') !== false && strpos($matches[0][0], ']END§§') !== false)) {
+                            if ($variable != '' && strpos($inhalt, $variable) !== false) {
+                                $erg = [];
+                                $ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
+                                if ($ext != false) {
+                                    $erg[] = $ext;
+                                    $erg[] = ['h' => $h, 'v' => $v];
+                                } else {
+                                    $erg = ['h' => $h, 'v' => $v];
+                                }
+                                return $erg;
                             }
-                            return $erg;
                         }
-                    } elseif (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
-                        if (strpos($inhalt, $variable) !== false) {
-                            $ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
-                            $erg = [];
-                            if ($ext != false) {
-                                $erg[] = $ext;
-                                $erg[] = ['h' => $h, 'v' => $v];
-                            } else {
-                                $erg = ['h' => $h, 'v' => $v];
-                            }
-                            return $erg;
+                    } else {
+                        if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
+                            $this->addVariable($title, $inhalt, $h, $v);
+                        } elseif (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
+                            $this->addVariableTable($worksheet, $inhalt, $h, $v);
                         }
-                    }
-                } else {
-                    if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
-                        $this->addVariable($title, $inhalt, $h, $v);
-                    } elseif (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
-                        $this->addVariableTable($worksheet, $inhalt, $h, $v);
                     }
                 }
             }
         }
+        print_r($this->variables[$title]);
+        print_r($this->variablesTable[$title]);
+        die();
+        return false;
+    }
+
+    public function findVariablesNew(&$worksheet) {
+        if (!$worksheet) {
+            $worksheet = &$this->worksheet;
+        }
+
+        // Find all variables
+        $variables = [];
+        $variablesTables = [];
+        $cellCollection = $worksheet->getCellCollection();
+        $cellCoords = $cellCollection->getCoordinates();
+        foreach($cellCoords as $coord) {
+            $cell = $cellCollection->get($coord);
+            if ($cell) {
+                $inhalt = $cell->getValue();
+                preg_match_all('/§§([^§]+)§§/', $inhalt, $matches);
+                if (count($matches[0]) > 0) {
+                    list($h, $v) = Coordinate::coordinateFromString($coord);
+                    $variables[$h.'-'.$v] = [
+                        'raw' => $inhalt,
+                        'matches' => $matches[0],
+                        'vars' => $matches[1],
+                    ];
+                    if (strpos($matches[0][0], '[') !== false && strpos($matches[0][0], ']') !== false) {
+                        $type = strpos($matches[0][0], ']END§§') === false ? 'start' : 'end';
+                        $variablesTables[] = [$h,$v, $type];
+                    }
+                }
+            }
+        }
+        $parsedTables = [];
+        // find tables
+        foreach ($variablesTables as $coords) {
+            list($col, $row, $type) = $coords;
+            if ($type !== 'start') {
+                continue;
+            }
+
+            $possibleEndings = array_filter($variablesTables, function($v) use ($row, $col) {
+                return $v[0] === $col && $v[1] > $row && $v[2] === 'end';
+            });
+            if (count($possibleEndings) > 0) {
+                $ending = current($possibleEndings);
+                $var = $variables[$col.'-'.$row]['vars'][0];
+                if (!isset($parsedTables[$var])) {
+                    $parsedTables[$var] = [];
+                }
+                $parsedTables[$var][] = ['col' => $col, 'begin' => $row, 'end' => $ending[1]];
+                unset($variables[$col.'-'.$row]);
+                unset($variables[$ending[0].'-'.$ending[1]]);
+            }
+        }
+        unset($variablesTables);
+
+        $title = $worksheet->getTitle();
+
+        $this->variables[$title] = $variables;
+        $this->variablesTable[$title] = $parsedTables;
         return false;
     }
 
@@ -195,20 +253,19 @@ class TemplateParser
     {
         $worksheet = $this->spreadsheet->getSheet($worksheetIndex);
 
-        $pos = $this->findVariables($variable, $worksheet);
+        $this->findVariables($variable, $worksheet);
 
-        if (!is_array($pos) || count($pos) == 0) {
+        $title = $worksheet->getTitle();
+
+        if (!isset($this->variablesTable[$title][$variable])) {
             return 0;
         }
 
-        $size = 0;
+        $tableData = $this->variablesTable[$title][$variable];
 
-        if (isset($pos['h'])) {
-            $size = Table::countTableRows($worksheet, $variable, $pos['h'], $pos['v']);
-        } else {
-            foreach ($pos as $p) {
-                $size += Table::countTableRows($worksheet, $variable, $p['h'], $p['v']);
-            }
+        $size = 0;
+        foreach ($tableData as $table) {
+            $size += $table['end'] - $table['begin'] + 1;
         }
         return $size;
     }
@@ -267,6 +324,13 @@ class TemplateParser
     public static function getVariableName($uncleanvariable)
     {
         return explode('[', str_replace('§§', '', $uncleanvariable))[0];
+    }
+
+    public static function getVariableTableKey($key)
+    {
+        $start = strpos($key, '[') + 1;
+        $end = strrpos($key, ']');
+        return substr($key, $start, $end - $start);
     }
 
     public static function getColName($uncleanvariable)

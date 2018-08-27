@@ -56,29 +56,27 @@ class Table
      */
     public static function setValues(&$worksheet, $celldata, $data)
     {
-        $selectedCell = $worksheet->getCellByColumnAndRow($celldata['h'], $celldata['v'][0]);
-        $colname = $celldata['variable_blank'];
-
-        $v = 0;
-
-        foreach ($data as $key => $o) {
-            if (is_object($o)) {
-                $o = (array) $o;
+        $order = [];
+        foreach ($celldata as $tableSet) {
+            for ($i = $tableSet['begin']; $i <= $tableSet['end']; ++$i) {
+                $order[] = $tableSet['col'].$i;
             }
-            if (isset($o[$colname])) {
-                if (gettype($o[$colname]) == 'resource') {
-                    self::addImage($worksheet, $o[$colname], $celldata['h'], $celldata['v'][$v]);
-                } else {
-                    $selectedCell->setValue($o[$colname]);
-                }
-            }
-
-            if (isset($celldata['v'][$v + 1]) === false) {
-                break 1;
-            }
-            ++$v;
-            $selectedCell = $worksheet->getCellByColumnAndRow($celldata['h'], $celldata['v'][$v]);
         }
+
+        $dataIndex = -1;
+        foreach ($order as $cellCoord) {
+            ++$dataIndex;
+            if (!isset($data[$dataIndex])) {
+                break;
+            }
+            $value = $data[$dataIndex];
+            if (gettype($value) == 'resource') {
+                self::addImageToCell($worksheet, $cellCoord, $value);
+            } else {
+                $worksheet->getCell($cellCoord)->setValue($value);
+            }
+        }
+
         return $worksheet;
     }
 
@@ -108,5 +106,21 @@ class Table
 
         $drawing->setWorksheet($worksheet);
         $worksheet->getCellByColumnAndRow($h, $v)->setValue('');
+    }
+
+    public static function addImageToCell(Worksheet &$worksheet, $cellCoord, $img, $width = 163, $height = 30)
+    {
+        $cell = $worksheet->getCell($cellCoord);
+        $cell->setValue('');
+        $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing();
+        $drawing->setName('In-Memory Drawing 2');
+        $drawing->setCoordinates($cellCoord);
+        $drawing->setImageResource($img);
+        $drawing->setRenderingFunction(\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::RENDERING_PNG);
+        $drawing->setMimeType(\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::MIMETYPE_DEFAULT);
+        $drawing->setWidth($width);
+        $drawing->setHeight($height);
+
+        $drawing->setWorksheet($worksheet);
     }
 }
