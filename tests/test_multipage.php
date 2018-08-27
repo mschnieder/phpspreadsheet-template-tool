@@ -18,7 +18,7 @@ $entry = (object) [
     'stunden' => '0.5',
     'stundensatz' => 25.0,
     'summeeuro' => 12.5,
-    'unterschriftklient'=> '|Unterschrift|',
+    'unterschriftklient'=> imagecreatefrompng(__DIR__.'/test_logo.png'),
     'datum' => '01.09.2018'
 ];
 
@@ -50,7 +50,7 @@ for($i=0;$i<100;$i++)
 
 $cache = new SimpleCache();
 $cache->setCacheDir(__DIR__.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR);
-$cache->clear();
+//$cache->clear();
 
 TemplateCache::setCache($cache);
 

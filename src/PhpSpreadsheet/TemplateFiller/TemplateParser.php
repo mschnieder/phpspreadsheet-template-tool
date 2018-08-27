@@ -114,7 +114,7 @@ class TemplateParser
         $sheetCount = $this->spreadsheet->getSheetCount();
         for ($i = 0; $i < $sheetCount; ++$i) {
             $worksheet = $this->spreadsheet->getSheet($i);
-            $this->findVariables('', $worksheet);
+            $this->findVariables($worksheet);
         }
 
         // Jetzt sind alle worksheets eingelesen und die variablen und größen geparsed.
@@ -131,65 +131,7 @@ class TemplateParser
         // jezt gibt es pro variable die table breakpoints
     }
 
-    public function findVariables($variable, &$worksheet, $vOffset = 1, $hOffset = 1)
-    {
-        $this->findVariablesNew($worksheet);
-        return;
-
-        if (!$worksheet) {
-            $worksheet = &$this->worksheet;
-        }
-        $title = $worksheet->getTitle();
-        if (!isset($this->variables[$title])) {
-            $this->variables[$title] = [];
-        }
-        if (!isset($this->variablesTable[$title])) {
-            $this->variablesTable[$title] = [];
-        }
-
-        $highestRow = $worksheet->getHighestRow();
-        $highestColumn = $worksheet->getHighestColumn();
-        $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn);
-
-        for ($v = $vOffset; $v <= $highestRow; ++$v) {
-            for ($h = $hOffset; $h <= $highestColumnIndex; ++$h) {
-                $cell = $worksheet->getCellByColumnAndRow($h, $v, false);
-                if($cell) {
-                    $inhalt = $cell->getValue();
-                    preg_match_all('/§§([^§]+)§§/', $inhalt, $matches);
-
-                    if(count($matches[0]) > 0) {
-                        $type = null;
-                        if ((strpos($matches[0][0], ']§§') === false && strpos($matches[0][0], ']END§§') === false) || (strpos($matches[0][0], '[') !== false && strpos($matches[0][0], ']END§§') !== false)) {
-                            if ($variable != '' && strpos($inhalt, $variable) !== false) {
-                                $erg = [];
-                                $ext = $this->findVariables($variable, $worksheet, $v + 1, 1);
-                                if ($ext != false) {
-                                    $erg[] = $ext;
-                                    $erg[] = ['h' => $h, 'v' => $v];
-                                } else {
-                                    $erg = ['h' => $h, 'v' => $v];
-                                }
-                                return $erg;
-                            }
-                        }
-                    } else {
-                        if (substr($inhalt, 0, 4) == '§§' && strpos($inhalt, ']§§') === false && strpos($inhalt, ']END§§') === false) {
-                            $this->addVariable($title, $inhalt, $h, $v);
-                        } elseif (strpos($inhalt, '[') !== false && strpos($inhalt, '§§') !== false && strpos($inhalt, ']END§§') === false) {
-                            $this->addVariableTable($worksheet, $inhalt, $h, $v);
-                        }
-                    }
-                }
-            }
-        }
-        print_r($this->variables[$title]);
-        print_r($this->variablesTable[$title]);
-        die();
-        return false;
-    }
-
-    public function findVariablesNew(&$worksheet) {
+    public function findVariables(&$worksheet) {
         if (!$worksheet) {
             $worksheet = &$this->worksheet;
         }
@@ -253,7 +195,7 @@ class TemplateParser
     {
         $worksheet = $this->spreadsheet->getSheet($worksheetIndex);
 
-        $this->findVariables($variable, $worksheet);
+        $this->findVariables($worksheet);
 
         $title = $worksheet->getTitle();
 
@@ -451,7 +393,7 @@ class TemplateParser
         $this->variables[$title] = [];
         $this->variablesTable[$title] = [];
 
-        $this->findVariables('', $this->worksheet);
+        $this->findVariables($this->worksheet);
     }
 
     public function createNewTemplate($tableSize, $worksheetName = null)

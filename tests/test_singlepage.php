@@ -36,8 +36,8 @@ $cache->setCacheDir(__DIR__.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR);
 //TemplateCache::warmup(__DIR__.'/test_file.xlsx', '&L&G&CTestausdruck', './test_logo.png', $entry, $data,'azua',  0, 200);
 
 $template = new Template();
-$template->setTemplate('azua_uebersicht.xlsx', __DIR__);
-$template->setWorksheetName('AzUA Übersicht 2018');
+$template->setTemplate('test_singlepage.xlsx', __DIR__);
+$template->setWorksheetName('SinglePage');
 $template->setData($data);
 
 $template->save('output.xlsx', __DIR__.DIRECTORY_SEPARATOR);
