@@ -294,10 +294,11 @@ class TemplateParser
 
     private function getTableBreakpoints($variable)
     {
-        if($this->hasWorksheetType(self::ONEPAGER))
-        $d = [
-            'onepager' => $this->getTableSize($variable, self::INDEX_ONEPAGER),
-        ];
+        if($this->hasWorksheetType(self::ONEPAGER)) {
+            $d = [
+                'onepager' => $this->getTableSize($variable, self::INDEX_ONEPAGER),
+            ];
+        }
         if ($this->hasWorksheetType(self::TWOPAGER)) {
             $d['twopager'] = $this->getTableSize($variable, self::INDEX_TWOPAGER);
         }
@@ -537,8 +538,8 @@ class TemplateParser
     public function hasWorksheetType($type)
     {
         $sheetType = $this->spreadsheetType;
-        if ($type === self::ONEPAGER) {
-            return $sheetType === self::TPL_ONEPAGEER_ONLY; // Ist aktuell immer dabei
+        if ($type === self::ONEPAGER || $sheetType === self::TPL_NORMAL) {
+            return $sheetType === self::TPL_ONEPAGEER_ONLY || $sheetType === self::TPL_NORMAL; // Ist aktuell immer dabei
         }
         if ($type === self::TWOPAGER) {
             return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_MULTIPAGER;
