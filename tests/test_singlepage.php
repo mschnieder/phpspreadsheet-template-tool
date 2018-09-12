@@ -14,7 +14,8 @@ $data = [
     'zeitraum_bis' => '31.12.2018',
     'tab' => [
 
-    ]
+    ],
+    'jahr' => 2020,
 ];
 $entry = [
     'lol' => 'LOL',

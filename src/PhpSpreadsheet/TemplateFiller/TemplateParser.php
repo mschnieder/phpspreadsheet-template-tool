@@ -64,6 +64,9 @@ class TemplateParser
     /** @var string */
     private $path;
 
+    /** @var array */
+    private $headerFooter = [];
+
     public function __construct($path)
     {
         $this->path = $path;
@@ -188,6 +191,18 @@ class TemplateParser
 
         $this->variables[$title] = $variables;
         $this->variablesTable[$title] = $parsedTables;
+
+        $worksheetHF = $worksheet->getHeaderFooter();
+        $headerFooter = [
+            'headerEven' => $worksheetHF->getEvenHeader(),
+            'headerOdd' => $worksheetHF->getOddHeader(),
+            'footerEven' => $worksheetHF->getEvenFooter(),
+            'footerOdd' => $worksheetHF->getOddFooter(),
+            'headerFirst' => $worksheetHF->getFirstHeader(),
+            'footerFirst' => $worksheetHF->getFirstFooter(),
+        ];
+        $this->headerFooter[$title] = $this->findVariablesInArray($headerFooter);
+
         return false;
     }
 
@@ -332,6 +347,13 @@ class TemplateParser
         return $this->variablesTable[$sheet->getTitle()];
     }
 
+    public function getHeaderFooterByType($createtype)
+    {
+        $index = self::getIndexByTypeName($createtype);
+        $sheet = $this->spreadsheet->getSheet($index);
+        return $this->headerFooter[$sheet->getTitle()];
+    }
+
     public static function getIndexByTypeName($type)
     {
         if ($type === self::ONEPAGER) {
@@ -424,8 +446,10 @@ class TemplateParser
             $title = $this->worksheet->getTitle();
             $this->variables[$worksheetName] = $this->variables[$title];
             $this->variablesTable[$worksheetName] = $this->variablesTable[$title];
+            $this->headerFooter[$worksheetName] = $this->headerFooter[$title];
             unset($this->variablesTable[$title]);
             unset($this->variables[$title]);
+            unset($this->headerFooter[$title]);
             $this->worksheet->setTitle($worksheetName);
         }
     }
@@ -539,5 +563,22 @@ class TemplateParser
     {
         $this->spreadsheet->garbageCollect();
         $this->worksheet->garbageCollect();
+    }
+
+    private function findVariablesInArray(array $headerFooter)
+    {
+        foreach ($headerFooter as $key => &$value) {
+            preg_match_all('/§§([^§]+)§§/', $value, $matches);
+            if (count($matches[0]) > 0) {
+                $value = [
+                    'raw' => $value,
+                    'matches' => $matches[0],
+                    'vars' => $matches[1],
+                ];
+            } else {
+                unset($headerFooter[$key]);
+            }
+        }
+        return $headerFooter;
     }
 }
