@@ -182,6 +182,10 @@ class Template
 
     private function cleanup()
     {
+        if ($this->worksheetName) {
+            $this->worksheet->setTitle($this->worksheetName);
+        }
+
         if (is_array($this->variables) && count($this->variables) > 0) {
             foreach ($this->variables as $coord => $variable) {
                 $cell = $this->worksheet->getCell(str_replace('-', '', $coord));
