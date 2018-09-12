@@ -2,7 +2,7 @@
   "name": "mschnieder/phpspreadsheet-template-tool",
   "description": "Fills Variables in a Excel File for PhpOffice-Spreadsheet.",
   "type": "library",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "keywords": ["PHPOffice", "phpspreadsheet"],
   "require": {
     "php": ">=7.0.0",
