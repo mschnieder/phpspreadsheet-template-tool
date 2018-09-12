@@ -48,6 +48,9 @@ class Template
     /** @var array */
     protected $logo;
 
+    /** @var array */
+    private $headerFooter;
+
     public function __construct()
     {
         $this->path = '';
@@ -109,6 +112,7 @@ class Template
 
         $this->variables = $this->templateParser->getVariablesByType($createtype);
         $this->variablesTable = $this->templateParser->getVariablesTableByType($createtype);
+        $this->headerFooter = $this->templateParser->getHeaderFooterByType($createtype);
         $this->pagetablesize = 0;
         if ($this->hasTable($d)) {
             $breakPoints = $this->templateParser->getBreakPoints();
@@ -138,6 +142,7 @@ class Template
             }
         }
         $this->fillData($d);
+        $this->fillHeaderFooter($d);
         $this->writeVariables();
     }
 
@@ -156,6 +161,42 @@ class Template
                 } else {
                     $value = str_replace($val['matches'][$i], $cellValue, $value);
                     $this->worksheet->getCell($coord)->setValue($value);
+                }
+            }
+        }
+    }
+
+    private function fillHeaderFooter(array $d) {
+        if (is_array($this->headerFooter) && count($this->headerFooter) > 0) {
+            $worksheetHF = $this->worksheet->getHeaderFooter();
+            foreach ($this->headerFooter as $key => $value) {
+                $raw = $value['raw'];
+                foreach ($value['vars'] as $i => $varName) {
+                    $raw = str_replace($value['matches'][$i], $d[$varName], $raw);
+                }
+                if ($key === 'headerFirst') {
+                    $worksheetHF->setFirstHeader($raw);
+                    continue;
+                }
+                if ($key === 'footerFirst') {
+                    $worksheetHF->setFirstFooter($raw);
+                    continue;
+                }
+                if ($key === 'headerEven') {
+                    $worksheetHF->setEvenHeader($raw);
+                    continue;
+                }
+                if ($key === 'footerEvent') {
+                    $worksheetHF->setEvenFooter($raw);
+                    continue;
+                }
+                if ($key === 'headerOdd') {
+                    $worksheetHF->setOddHeader($raw);
+                    continue;
+                }
+                if ($key === 'footerOdd') {
+                    $worksheetHF->setOddFooter($raw);
+                    continue;
                 }
             }
         }
