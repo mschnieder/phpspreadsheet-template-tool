@@ -136,7 +136,7 @@ class Template
                     if (is_object($v)) {
                         $v = (array) $v;
                     }
-                    return $v[$tableKey];
+                    return $v[$tableKey] ?? '';
                 }, $data);
                 Table::fill($this->worksheet, $celldata, $data);
             }
