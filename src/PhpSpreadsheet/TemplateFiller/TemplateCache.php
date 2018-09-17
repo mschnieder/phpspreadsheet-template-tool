@@ -63,9 +63,14 @@ class TemplateCache
             $meta = $this->getTemplateMeta();
             $filename = basename($path);
             $templateTimestamp = @filemtime($path);
+            $hash = @md5_file($path);
+            if (!isset($meta[$filename]['timestamp'][$cachedTemplate]) || !isset($meta[$filename]['cachefiles'][$cachedTemplate]) && !isset($meta[$filename]['hash'][$cachedTemplate])) {
+                return true;
+            }
             if (
-                $meta[$filename]['timestamp'] >= $templateTimestamp ||
-                $meta[$filename]['cachefiles'][$cachedTemplate] >= $templateTimestamp
+                ($meta[$filename]['timestamp'][$cachedTemplate] >= $templateTimestamp ||
+                $meta[$filename]['cachefiles'][$cachedTemplate] >= $templateTimestamp) &&
+                $meta[$filename]['hash'][$cachedTemplate] == $hash
             ) {
                 return false;
             }
@@ -121,24 +126,18 @@ class TemplateCache
                 $meta = [];
             }
 
-            if (!isset($meta[$filename])) {
-                $breakpoints = $templateParser->getBreakPoints();
-                $breakpoints = reset($breakpoints);
-
+            $breakpoints = $templateParser->getBreakPoints();
+            $breakpoints = reset($breakpoints);
+            if (!isset($meta[$filename]) || !isset($meta[$filename]['timestamp']) || !isset($meta[$filename]['cachefiles']) && !isset($meta[$filename]['hash'])) {
                 $meta[$filename] = [];
-                $meta[$filename]['timestamp'] = @filemtime($path);
-                $meta[$filename]['breakpoints'] = $breakpoints;
+                $meta[$filename]['timestamp'] = [];
                 $meta[$filename]['cachefiles'] = [];
-            } elseif ($meta[$filename]['timestamp'] < @filemtime($path)) {
-                $breakpoints = $templateParser->getBreakPoints();
-                $breakpoints = reset($breakpoints);
-
-                $meta[$filename] = [];
-                $meta[$filename]['timestamp'] = @filemtime($path);
-                $meta[$filename]['breakpoints'] = $breakpoints;
-                $meta[$filename]['cachefiles'] = [];
+                $meta[$filename]['hash'] = [];
             }
+            $meta[$filename]['breakpoints'] = $breakpoints;
+            $meta[$filename]['timestamp'][$cacheKey] = @filemtime($path);
             $meta[$filename]['cachefiles'][$cacheKey] = time();
+            $meta[$filename]['hash'][$cacheKey] = md5_file($path);
 
             self::$cacheClass->set(self::CACHE_METADATA, $meta);
         }
