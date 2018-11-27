@@ -157,7 +157,7 @@ class Template
                 }
                 $cellValue = $d[$varName];
                 if (gettype($cellValue) == 'resource') {
-                    Table::addImageToCell($this->worksheet, $coord, $cellValue, 163, 30);
+                    Table::addImageToCell($this->worksheet, $coord, $cellValue);
                 } else {
                     $value = str_replace($val['matches'][$i], $cellValue, $value);
                     $this->worksheet->getCell($coord)->setValue($value);
