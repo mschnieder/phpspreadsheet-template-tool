@@ -127,6 +127,7 @@ class TemplateCache
 
                 $meta[$filename] = [];
                 $meta[$filename]['timestamp'] = @filemtime($path);
+                $meta[$filename]['breakpoints'] = [];
                 $meta[$filename]['breakpoints'] = $breakpoints;
                 $meta[$filename]['cachefiles'] = [];
             } elseif ($meta[$filename]['timestamp'] < @filemtime($path)) {
@@ -135,6 +136,7 @@ class TemplateCache
 
                 $meta[$filename] = [];
                 $meta[$filename]['timestamp'] = @filemtime($path);
+                $meta[$filename]['breakpoints'] = [];
                 $meta[$filename]['breakpoints'] = $breakpoints;
                 $meta[$filename]['cachefiles'] = [];
             }
