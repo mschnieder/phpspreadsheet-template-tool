@@ -499,6 +499,25 @@ class TemplateParser
         $this->worksheet->getHeaderFooter()->setOddHeader($header);
     }
 
+    public function setProbeausdruck($path) {
+        $drawing = new HeaderFooterDrawing();
+        $drawing->setName('Logo');
+        $drawing->setPath($path);
+        $drawing->setWidth(500);
+        $this->worksheet->getHeaderFooter()->addImage($drawing, HeaderFooter::IMAGE_HEADER_LEFT);
+
+        $header = $this->worksheet->getHeaderFooter()->getFirstHeader();
+        if (empty($header)) {
+            $header = '&L&G' . $header;
+        } else {
+            $header = '&G' . $header;
+        }
+
+        $this->worksheet->getHeaderFooter()->setFirstHeader($header);
+        $this->worksheet->getHeaderFooter()->setEvenHeader($header);
+        $this->worksheet->getHeaderFooter()->setOddHeader($header);
+    }
+
     private function detectTemplateStructure()
     {
         $sheetNames = $this->spreadsheet->getSheetNames();
