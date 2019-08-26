@@ -51,6 +51,9 @@ class Template
     /** @var array */
     private $headerFooter;
 
+    /** @var bool|string */
+    private $probeausdruck = false;
+
     public function __construct()
     {
         $this->path = '';
@@ -103,6 +106,9 @@ class Template
 
             if ($this->logo) {
                 call_user_func_array([$this->templateParser, 'setLogo'], $this->logo);
+            }
+            if ($this->probeausdruck) {
+                $this->templateParser->setProbeausdruck($this->probeausdruck);
             }
 
             $this->templateCache->store($this->templateParser);
@@ -207,9 +213,12 @@ class Template
         $this->logo = func_get_args();
     }
 
-    public function setProbeausdruck()
+    public function setProbeausdruck($path = false)
     {
-        //TODO mit spreadsheet noch herausfinden
+        if (!file_exists($path)) {
+            throw new Exception('phpspreadsheet: file not found `'.$path.'`');
+        }
+        $this->probeausdruck = $path;
     }
 
     protected function writeVariables()
