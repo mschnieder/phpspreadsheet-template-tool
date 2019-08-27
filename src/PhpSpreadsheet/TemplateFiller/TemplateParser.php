@@ -67,6 +67,9 @@ class TemplateParser
     /** @var array */
     private $headerFooter = [];
 
+    /** @var boolean */
+    private $probeausdruck = false;
+
     public function __construct($path)
     {
         $this->path = $path;
@@ -466,7 +469,7 @@ class TemplateParser
 
     public function getCacheKey()
     {
-        return TemplateCache::getCacheKey(basename($this->path), self::getTypeNameByIndex($this->selectedIndex), $this->additionalPages);
+        return TemplateCache::getCacheKey(basename($this->path), self::getTypeNameByIndex($this->selectedIndex), $this->additionalPages, $this->probeausdruck);
     }
 
     public function getPath()
@@ -500,6 +503,7 @@ class TemplateParser
     }
 
     public function setProbeausdruck($path) {
+        $this->probeausdruck = true;
         $drawing = new HeaderFooterDrawing();
         $drawing->setName('Logo');
         $drawing->setPath($path);
