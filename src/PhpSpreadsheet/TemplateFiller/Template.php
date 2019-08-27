@@ -92,7 +92,7 @@ class Template
             $maxRowsVar = '';
         }
 
-        $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows);
+        $cachedTemplateKey = $this->templateCache->getCacheTemplateKey(basename($this->path), $maxRows, $this->probeausdruck);
 
         if ($cachedTemplateKey && $this->templateCache->exists($cachedTemplateKey) && !$this->templateCache->isInvalid($cachedTemplateKey, $this->path)) {
             $this->templateParser = $this->templateCache->loadFromCache($cachedTemplateKey);

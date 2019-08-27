@@ -24,7 +24,7 @@ class TemplateCache
         self::$cacheClass = $cacheClass;
     }
 
-    public function getCacheTemplateKey($filename, $maxRows)
+    public function getCacheTemplateKey($filename, $maxRows, $probeausdruck = false)
     {
         $meta = $this->getTemplateMeta();
         if (self::$cacheClass && isset($meta[$filename])) {
@@ -32,7 +32,7 @@ class TemplateCache
             $breakPoints = $fileCache['breakpoints'];
 
             if ($breakPoints[TemplateParser::ONEPAGER] >= $maxRows) {
-                return self::getCacheKey($filename, TemplateParser::ONEPAGER, 0);
+                return self::getCacheKey($filename, TemplateParser::ONEPAGER, 0, $probeausdruck);
             }
 
             if (!isset($breakPoints[TemplateParser::TWOPAGER]) && !isset($breakPoints[TemplateParser::MULTIPAGER])) {
@@ -40,7 +40,7 @@ class TemplateCache
             }
 
             if (isset($breakPoints[TemplateParser::TWOPAGER]) && $breakPoints[TemplateParser::TWOPAGER] >= $maxRows) {
-                return self::getCacheKey($filename, TemplateParser::TWOPAGER, 0);
+                return self::getCacheKey($filename, TemplateParser::TWOPAGER, 0, $probeausdruck);
             }
 
             if (!isset($breakPoints[TemplateParser::MULTIPAGER])) {
@@ -52,7 +52,7 @@ class TemplateCache
                 $neededRows = $maxRows - ($breakPoints[TemplateParser::NAME_STARTPAGE] + $breakPoints[TemplateParser::NAME_ENDPAGE]);
             }
             $additionalPages = max(0, ceil($neededRows / $breakPoints[TemplateParser::MULTIPAGER]));
-            return self::getCacheKey($filename, TemplateParser::MULTIPAGER, $additionalPages);
+            return self::getCacheKey($filename, TemplateParser::MULTIPAGER, $additionalPages, $probeausdruck);
         }
         return null;
     }
@@ -93,9 +93,9 @@ class TemplateCache
         return null;
     }
 
-    public static function getCacheKey($filename, $type, $additionalPages = 0)
+    public static function getCacheKey($filename, $type, $additionalPages = 0, $probeausdruck = false)
     {
-        return $filename.'_'.$type.'_'.$additionalPages;
+        return $filename.'_'.$type.'_'.($probeausdruck ? 'probe_' : '').$additionalPages;
     }
 
     public function loadFromCache($cachedTemplateKey)
