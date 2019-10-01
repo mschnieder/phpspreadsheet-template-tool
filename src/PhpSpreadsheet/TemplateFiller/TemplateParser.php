@@ -36,6 +36,7 @@ class TemplateParser
     const TPL_ONEPAGEER_ONLY = 1;
     const TPL_NO_TWOPAGER = 2;
     const TPL_NO_MULTIPAGER = 3;
+    const TPL_MULTIPAGER_ONLY = 4;
 
     /** @var array */
     private $variablesTable = [];
@@ -87,12 +88,12 @@ class TemplateParser
         $breakPoints = $this->getBreakPoints();
         $breakPoints = reset($breakPoints);
 
-        if ($rows <= $breakPoints[self::ONEPAGER]) {
+        if ($this->hasWorksheetType(self::ONEPAGER) === true && $rows <= $breakPoints[self::ONEPAGER]) {
             $this->selectedIndex = self::INDEX_ONEPAGER;
             $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_ONEPAGER);
             return self::ONEPAGER;
         }
-        if (($this->hasWorksheetType(self::TWOPAGER) || $this->hasWorksheetType(self::MULTIPAGER)) === false) {
+        if ($this->hasWorksheetType(self::MULTIPAGER) === false && $this->hasWorksheetType(self::TWOPAGER) == false) {
             throw new Exception('Table is too large for the given template and twopager/multipager doesn\'t exists');
         }
         if (isset($breakPoints[self::TWOPAGER]) && $rows <= $breakPoints[self::TWOPAGER]) {
@@ -104,12 +105,17 @@ class TemplateParser
             throw new Exception('Table is too large for the given template and multipager doesn\'t exists');
         }
 
-        if (isset($breakPoints[self::TWOPAGER])) {
-            $this->selectedIndex = self::INDEX_MULTIPAGER;
-            $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE);
+        if($this->spreadsheetType == self::TPL_MULTIPAGER_ONLY) {
+            $this->selectedIndex = 0;
+            $this->worksheet = $this->spreadsheet->getSheet(0);
         } else {
-            $this->selectedIndex = self::INDEX_MULTIPAGER - 1;
-            $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE - 1);
+            if (isset($breakPoints[self::TWOPAGER])) {
+                $this->selectedIndex = self::INDEX_MULTIPAGER;
+                $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE);
+            } else {
+                $this->selectedIndex = self::INDEX_MULTIPAGER - 1;
+                $this->worksheet = $this->spreadsheet->getSheet(self::INDEX_STARTPAGE - 1);
+            }
         }
 
         return self::MULTIPAGER;
@@ -127,7 +133,10 @@ class TemplateParser
 
         // If tables exist
         if (count($this->variablesTable) > 0) {
-            $values = reset($this->variablesTable);
+            $values = array_filter($this->variablesTable, function($value) {
+                return count($value) > 0;
+            });
+            $values = reset($values);
             foreach ($values as $key => $val) {
                 $parsedVar = self::getVariableName($key);
                 $this->breakPoints[$parsedVar] = $this->getTableBreakpoints($key);
@@ -303,18 +312,21 @@ class TemplateParser
 
     private function getTableBreakpoints($variable)
     {
-        $d = [
-            'onepager' => $this->getTableSize($variable, self::INDEX_ONEPAGER),
-        ];
+        if($this->hasWorksheetType(self::ONEPAGER)) {
+            $d = [
+                'onepager' => $this->getTableSize($variable, self::INDEX_ONEPAGER),
+            ];
+        }
         if ($this->hasWorksheetType(self::TWOPAGER)) {
             $d['twopager'] = $this->getTableSize($variable, self::INDEX_TWOPAGER);
         }
-        if ($this->hasWorksheetType(self::MULTIPAGER)) {
+        if ($this->hasWorksheetType(self::TWOPAGER) && $this->hasWorksheetType(self::MULTIPAGER)) {
             $d['multipager'] = $this->getTableSize($variable, self::INDEX_MULTIPAGER);
         }
         if (!$this->hasWorksheetType(self::TWOPAGER) && $this->hasWorksheetType(self::MULTIPAGER)) {
-            $d[self::NAME_STARTPAGE] = $this->getTableSize($variable, self::INDEX_STARTPAGE - 1);
-            $d[self::NAME_ENDPAGE] = $this->getTableSize($variable, self::INDEX_ENDPAGE - 1);
+            $d[self::NAME_STARTPAGE] = $this->getTableSize($variable, 0);
+            $d[self::NAME_MULTIPAGER] = $this->getTableSize($variable, 1);
+            $d[self::NAME_ENDPAGE] = $this->getTableSize($variable, 2);
         }
 
         return $d;
@@ -394,7 +406,7 @@ class TemplateParser
             $neededSize = $tableSize - ($breakPoints[self::NAME_STARTPAGE] + $breakPoints[self::NAME_ENDPAGE]);
         }
         $neededSize = max($neededSize, 0);
-        $middleSize = $breakPoints[self::MULTIPAGER];
+        $middleSize = $breakPoints[self::NAME_MULTIPAGER];
 
         $neededSheets = ceil($neededSize / $middleSize);
 
@@ -404,8 +416,8 @@ class TemplateParser
             $middleSheet = $this->spreadsheet->getSheet(self::INDEX_MULTIPAGER);
             $endSheet = $this->spreadsheet->getSheet(self::INDEX_ENDPAGE);
         } else {
-            $middleSheet = $this->spreadsheet->getSheet(self::INDEX_MULTIPAGER - 1);
-            $endSheet = $this->spreadsheet->getSheet(self::INDEX_ENDPAGE - 1);
+            $middleSheet = $this->spreadsheet->getSheet($this->spreadsheetType == self::TPL_MULTIPAGER_ONLY ? 1 : self::INDEX_MULTIPAGER - 1);
+            $endSheet = $this->spreadsheet->getSheet($this->spreadsheetType == self::TPL_MULTIPAGER_ONLY ? 2 : self::INDEX_ENDPAGE - 1);
         }
         for ($i = 0; $i < $neededSheets; ++$i) {
             Utils::appendSheet($middleSheet, $this->worksheet);
@@ -564,20 +576,23 @@ class TemplateParser
         if ($onepagerExists && $twopagerExists && $multipageComplete) {
             $this->spreadsheetType = self::TPL_NORMAL;
         }
+        if (!$onepagerExists && !$twopagerExists && $multipageComplete) {
+            $this->spreadsheetType = self::TPL_MULTIPAGER_ONLY;
+        }
         return $this->spreadsheetType;
     }
 
     public function hasWorksheetType($type)
     {
         $sheetType = $this->spreadsheetType;
-        if ($type === self::ONEPAGER) {
-            return true; // Ist aktuell immer dabei
+        if ($type === self::ONEPAGER || $sheetType === self::TPL_NORMAL) {
+            return $sheetType === self::TPL_ONEPAGEER_ONLY || $sheetType === self::TPL_NORMAL; // Ist aktuell immer dabei
         }
         if ($type === self::TWOPAGER) {
             return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_MULTIPAGER;
         }
         if ($type === self::MULTIPAGER) {
-            return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_TWOPAGER;
+            return $sheetType === self::TPL_NORMAL || $sheetType === self::TPL_NO_TWOPAGER || $sheetType == self::TPL_MULTIPAGER_ONLY;
         }
         throw new \InvalidArgumentException('"'.$type.'" is not a valid option');
     }
